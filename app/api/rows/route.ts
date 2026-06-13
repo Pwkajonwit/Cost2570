@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearCache } from "@/lib/cache";
 import { PRIMARY_VIEWS, TABLE_KEYS, TABLES, VIEW_COLUMNS } from "@/lib/config";
-import { applyContractFormulas } from "@/lib/formulas";
+import { applyContractFormulas, applyProjectFormulas } from "@/lib/formulas";
 import { appendRow, deleteRows, getRows, updateRow } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
     const row = body.row && typeof body.row === "object" ? body.row as SheetRow : {};
-    const output = tableName === TABLES.CONTRACT_WORK ? await applyContractFormulas(row) : row;
+    const output = tableName === TABLES.CONTRACT_WORK
+      ? await applyContractFormulas(row)
+      : tableName === TABLES.PROJECT
+        ? applyProjectFormulas(row)
+        : row;
     await appendRow(tableName, output);
     clearCache("rows:");
     clearCache("headers:");
@@ -53,8 +57,9 @@ export async function PATCH(request: NextRequest) {
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
     const sheetRow = Number(body.sheetRow);
-    const values = body.values && typeof body.values === "object" ? body.values : {};
-    const row = await updateRow(tableName, sheetRow, values);
+    const values = body.values && typeof body.values === "object" ? body.values as SheetRow : {};
+    const output = tableName === TABLES.PROJECT ? applyProjectFormulas(values) : values;
+    const row = await updateRow(tableName, sheetRow, output);
     clearCache("rows:");
     return NextResponse.json({ ok: true, row });
   } catch (error) {
@@ -69,6 +74,7 @@ export async function DELETE(request: NextRequest) {
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
     const sheetRows = Array.isArray(body.sheetRows) ? body.sheetRows.map(Number) : [];
+    if (tableName === TABLES.PROJECT) await validateProjectDelete(sheetRows);
     await deleteRows(tableName, sheetRows);
     clearCache("rows:");
     return NextResponse.json({ ok: true, deleted: sheetRows.length });
@@ -83,6 +89,25 @@ function canManageTable(tableName: string) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Request failed";
+}
+
+async function validateProjectDelete(sheetRows: number[]) {
+  const [projects, dataRows, contractRows] = await Promise.all([
+    getRows(TABLES.PROJECT),
+    getRows(TABLES.DATA),
+    getRows(TABLES.CONTRACT_WORK)
+  ]);
+  const deletingProjects = projects.filter(row => sheetRows.includes(Number(row._sheetRow)));
+  const blocked = deletingProjects.flatMap(project => {
+    const projectId = String(project["ID Project"] || "").trim();
+    if (!projectId) return [];
+    const billCount = dataRows.filter(row => String(row["ID Project"] || "").trim() === projectId).length;
+    const contractCount = contractRows.filter(row => String(row["ID Project"] || "").trim() === projectId).length;
+    return billCount || contractCount ? [`${projectId} (${billCount} บิล, ${contractCount} เปิดจ้าง)`] : [];
+  });
+  if (blocked.length) {
+    throw new Error(`ลบ Project ไม่ได้ เพราะมีข้อมูลที่ผูกอยู่: ${blocked.slice(0, 5).join(", ")}`);
+  }
 }
 
 async function readPostBody(request: NextRequest) {

@@ -42,6 +42,58 @@ export const FORM_SCHEMAS: Record<string, FieldSchema[]> = {
     { name: "สินค้า/ทำงาน", type: "Hidden" },
     { name: "ยอดโอน", type: "Hidden" }
   ],
+  [TABLES.PROJECT]: [
+    { name: "ID Project", type: "Number", key: true, initialValue: "nextProjectId", required: true, readonlyOnEdit: true },
+    { name: "ชื่อ Project", type: "Text", required: true },
+    {
+      name: "ชื่อลูกค้า",
+      type: "Ref",
+      refTable: TABLES.CUSTOMER,
+      refKey: "id_cus",
+      refLabel: "ชื่อลูกค้า",
+      refFill: { "สถานที่": "ชื่อลูกค้า" }
+    },
+    { name: "สถานที่", type: "Text", readonly: true },
+    { name: "ยอดงาน", type: "Number", required: true },
+    { name: "ยอดรวม vat", type: "Number", readonly: true },
+    { name: "งบไม่เกิน", type: "Number" },
+    { name: "วันที่", type: "Date", initialValue: "today" },
+    { name: "color", type: "Enum", values: ["Red", "Green", "Black"], inputMode: "buttons", initialValue: "Red" },
+    {
+      name: "บริษัท",
+      type: "Ref",
+      refTable: TABLES.COMPANY,
+      refKey: "id_Company",
+      refLabel: "ชื่อบริษัท"
+    },
+    { name: "รับผิดชอบ", type: "Enum", values: ["PW1", "PW2", "PW3", "PW4", "PW"], inputMode: "dropdown" },
+    {
+      name: "คุมงบประเภทงาน",
+      type: "Enum",
+      values: ["รวมจ่ายประเภทงาน1", "รวมจ่ายประเภทงาน2", "รวมจ่ายเงิน"],
+      inputMode: "buttons"
+    },
+    { name: "งบไม่เกินเหล็กเส้น", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินรูปพรรณ", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินคอนกรีต", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินไม้แบบ", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินวัสดุมุง", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินฝ้าผนัง", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินปูพื้น", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินกระจก", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินไฟฟ้า", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินประปา", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินอื่นๆ", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน1" } },
+    { name: "งบไม่เกินสีเคมี", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินสุขภัณฑ์", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินบิวอิน", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินแอร์", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินดิน", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินหินทราย", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินเตรียมงาน", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายประเภทงาน2" } },
+    { name: "งบไม่เกินค่าของ", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายเงิน" } },
+    { name: "งบไม่เกินค่าแรง", type: "Number", showIf: { column: "คุมงบประเภทงาน", equals: "รวมจ่ายเงิน" } }
+  ],
   [TABLES.CONTRACT_WORK]: [
     { name: "id_Conwork", type: "Text", key: true, initialValue: "nextContractWorkId", required: true, readonlyOnEdit: true },
     {

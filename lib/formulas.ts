@@ -19,6 +19,15 @@ export async function applyContractFormulas(row: SheetRow) {
   return applyContractFormulasWithContext({ ...row }, context);
 }
 
+export function applyProjectFormulas(row: SheetRow) {
+  const output = { ...row };
+  const workAmount = toNumber(output["ยอดงาน"]);
+  if (hasValue(output["ยอดงาน"])) output["ยอดรวม vat"] = workAmount * 1.07;
+  if (!hasValue(output["วันที่"])) output["วันที่"] = new Date().toISOString().slice(0, 10);
+  if (!hasValue(output["color"])) output["color"] = "Red";
+  return output;
+}
+
 export async function hydrateContractRows(rows: SheetRow[]) {
   const context = await getContractFormulaContext();
   return rows.map(row => applyContractFormulasWithContext({ ...row }, context));

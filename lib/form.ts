@@ -114,6 +114,7 @@ export async function getInitialValues(tableName: string): Promise<SheetRow> {
     if (!column.initialValue) continue;
     if (column.initialValue === "today") values[column.name] = new Date().toISOString().slice(0, 10);
     if (column.initialValue === "nextDataSequence") values[column.name] = String(await nextDataSequence());
+    if (column.initialValue === "nextProjectId") values[column.name] = String(await nextProjectId());
     if (column.initialValue === "nextContractWorkId") values[column.name] = await nextContractWorkId();
     if (!values[column.name]) values[column.name] = column.initialValue;
   }
@@ -137,4 +138,12 @@ async function nextContractWorkId() {
     return Math.max(max, match ? Number(match[1]) : 0);
   }, 0) + 1;
   return `CW${next}`;
+}
+
+async function nextProjectId() {
+  const rows = await getRows(TABLES.PROJECT, 15_000);
+  return rows.reduce((max, row) => {
+    const value = Number(row["ID Project"] || 0);
+    return Number.isFinite(value) ? Math.max(max, value) : max;
+  }, 0) + 1;
 }

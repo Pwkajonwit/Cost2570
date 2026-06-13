@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Eye, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import type { RowValue, SheetRow } from "@/lib/types";
 
 type BusyState = "add" | "edit" | "delete" | null;
@@ -15,6 +16,9 @@ type ManageTableClientProps = {
   keyColumn: string;
   search?: string;
   rowLabel?: string;
+  detailBasePath?: string;
+  addOpenEventName?: string;
+  editOpenEventName?: string;
 };
 
 export function ManageTableClient({
@@ -25,7 +29,10 @@ export function ManageTableClient({
   rows: initialRows,
   keyColumn,
   search = "",
-  rowLabel = "รายการ"
+  rowLabel = "รายการ",
+  detailBasePath,
+  addOpenEventName,
+  editOpenEventName
 }: ManageTableClientProps) {
   const visibleColumns = useMemo(() => columns.filter(column => column !== "_sheetRow"), [columns]);
   const addColumns = useMemo(() => formColumns.filter(column => column !== "_sheetRow"), [formColumns]);
@@ -62,6 +69,10 @@ export function ManageTableClient({
 
   function openAddForm() {
     setError("");
+    if (addOpenEventName) {
+      window.dispatchEvent(new Event(addOpenEventName));
+      return;
+    }
     setAddValues(emptyValues(addColumns));
     setAddOpen(true);
   }
@@ -85,6 +96,7 @@ export function ManageTableClient({
   }
 
   function beginEdit() {
+    if (editOpenEventName) return;
     setError("");
     setDeleteMode(false);
     setSelectedRows([]);
@@ -151,6 +163,17 @@ export function ManageTableClient({
     setDeleteMode(true);
   }
 
+  function openSchemaEdit(row: SheetRow) {
+    if (!editOpenEventName) return;
+    const sheetRow = Number(row._sheetRow);
+    if (!Number.isInteger(sheetRow)) {
+      setError("ไม่พบตำแหน่งแถวใน Sheet สำหรับแก้ไข");
+      return;
+    }
+    setError("");
+    window.dispatchEvent(new CustomEvent(editOpenEventName, { detail: { row, sheetRow } }));
+  }
+
   function toggleSelected(sheetRow: number) {
     setSelectedRows(current => current.includes(sheetRow) ? current.filter(row => row !== sheetRow) : [...current, sheetRow]);
   }
@@ -204,7 +227,7 @@ export function ManageTableClient({
                   <span>ยกเลิก</span>
                 </button>
               </>
-            ) : (
+            ) : editOpenEventName ? null : (
               <button type="button" disabled={Boolean(busy) || !rows.length} onClick={beginEdit}>
                 <Pencil size={15} />
                 <span>แก้ไข</span>
@@ -236,6 +259,7 @@ export function ManageTableClient({
               <thead>
                 <tr>
                   {deleteMode ? <th className="manage-select-col"></th> : null}
+                  {(detailBasePath || editOpenEventName) && !editing && !deleteMode ? <th className="manage-detail-col">จัดการ</th> : null}
                   {visibleColumns.map(column => <th key={column}>{column}</th>)}
                 </tr>
               </thead>
@@ -253,6 +277,34 @@ export function ManageTableClient({
                             disabled={!Number.isInteger(sheetRow) || Boolean(busy)}
                             onChange={() => toggleSelected(sheetRow)}
                           />
+                        </td>
+                      ) : null}
+                      {(detailBasePath || editOpenEventName) && !editing && !deleteMode ? (
+                        <td className="manage-detail-col" data-label="ดู">
+                          <div className="manage-row-actions">
+                            {detailBasePath ? (
+                              <Link
+                                className="detail-link-button detail-icon-button"
+                                href={`${detailBasePath}/${encodeURIComponent(String(row[keyColumn] || ""))}`}
+                                aria-label="ดูรายละเอียด"
+                                title="ดูรายละเอียด"
+                              >
+                                <Eye size={16} />
+                              </Link>
+                            ) : null}
+                            {editOpenEventName ? (
+                              <button
+                                type="button"
+                                className="detail-link-button detail-icon-button detail-edit-row-button"
+                                disabled={Boolean(busy)}
+                                onClick={() => openSchemaEdit(row)}
+                                aria-label="แก้ไข"
+                                title="แก้ไข"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                            ) : null}
+                          </div>
                         </td>
                       ) : null}
                       {visibleColumns.map(column => {

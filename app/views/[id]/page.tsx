@@ -65,7 +65,7 @@ async function renderView(
     const [rawRows, headers, form] = await Promise.all([
       safeRows(view.table),
       getHeaders(view.table).catch(() => []),
-      view.id === "contract-open" ? getFormPayload(view.table).catch(() => null) : Promise.resolve(null)
+      usesSchemaForm(view.id) ? getFormPayload(view.table).catch(() => null) : Promise.resolve(null)
     ]);
     const rows = view.id === "contract-open"
       ? filterRows(await hydrateContractRows(rawRows), search)
@@ -86,7 +86,32 @@ async function renderView(
             keyColumn={keyColumn}
             search={search}
             rowLabel="รายการ"
+            detailBasePath={view.id === "project-all" ? "/views/project-all" : undefined}
+            addOpenEventName={view.id === "project-all" && form ? "open-project-form" : undefined}
+            editOpenEventName={view.id === "project-all" && form ? "open-project-edit-form" : undefined}
           />
+          {view.id === "project-all" && form ? (
+            <>
+              <FormModal
+                form={form}
+                title="เพิ่ม Project"
+                buttonLabel="เพิ่ม Project"
+                relaxed
+                submitPath="/api/rows"
+                openEventName="open-project-form"
+                hideLauncher
+              />
+              <FormModal
+                form={form}
+                title="แก้ไข Project"
+                buttonLabel="แก้ไข Project"
+                relaxed
+                submitPath="/api/rows"
+                openEventName="open-project-edit-form"
+                hideLauncher
+              />
+            </>
+          ) : null}
         </section>
       );
     }
@@ -209,5 +234,9 @@ function getManageFormColumns(columns: string[], headers: string[], keyColumn: s
     if (!column || column === "_sheetRow" || column === "_RowNumber") return false;
     return available.includes(column);
   });
+}
+
+function usesSchemaForm(viewId: string) {
+  return viewId === "contract-open" || viewId === "project-all";
 }
 

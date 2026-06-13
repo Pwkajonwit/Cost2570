@@ -21,23 +21,42 @@ type FormModalProps = {
   relaxed?: boolean;
   submitPath?: string;
   openEventName?: string;
+  hideLauncher?: boolean;
 };
 
-export function FormModal({ form, title = "เพิ่มข้อมูล", buttonLabel = "เพิ่มรายการ", relaxed = false, submitPath, openEventName }: FormModalProps) {
+type OpenFormDetail = {
+  row?: SheetRow;
+  sheetRow?: number;
+};
+
+export function FormModal({ form, title = "เพิ่มข้อมูล", buttonLabel = "เพิ่มรายการ", relaxed = false, submitPath, openEventName, hideLauncher = false }: FormModalProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>(() => getInitialStringValues(form));
+  const [editSheetRow, setEditSheetRow] = useState<number | null>(null);
   const [enumListSearch, setEnumListSearch] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const isEditing = Number.isInteger(editSheetRow);
   const visibleFields = form.schema.filter(field => field.type !== "Hidden" && isFieldVisible(field, values));
 
   useEffect(() => {
     if (!openEventName) return;
-    const openFromExternalButton = () => setOpen(true);
-    window.addEventListener(openEventName, openFromExternalButton);
-    return () => window.removeEventListener(openEventName, openFromExternalButton);
-  }, [openEventName]);
+    const openFromExternalButton = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail as OpenFormDetail | undefined : undefined;
+      const nextValues = detail?.row
+        ? getRowStringValues(form, detail.row)
+        : getInitialStringValues(form);
+      applyLocalFormulas(nextValues, form.tableName);
+      setError("");
+      setEnumListSearch({});
+      setEditSheetRow(Number.isInteger(Number(detail?.sheetRow)) ? Number(detail?.sheetRow) : null);
+      setValues(nextValues);
+      setOpen(true);
+    };
+    window.addEventListener(openEventName, openFromExternalButton as EventListener);
+    return () => window.removeEventListener(openEventName, openFromExternalButton as EventListener);
+  }, [form, openEventName]);
 
   function updateValue(field: FieldSchema, value: string) {
     setValues(current => {
@@ -59,20 +78,28 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
     Object.entries(values).forEach(([key, value]) => body.append(key, value));
 
     formElement.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach(input => {
-      const file = input.files?.[0];
-      if (file && file.size > 0) body.set(input.name, file);
+      Array.from(input.files || []).forEach(file => {
+        if (file.size > 0) body.append(input.name, file);
+      });
     });
 
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(submitPath, {
-        method: "POST",
-        body
-      });
+      const response = isEditing
+        ? await fetch(submitPath, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tableName: form.tableName, sheetRow: editSheetRow, values })
+        })
+        : await fetch(submitPath, {
+          method: "POST",
+          body
+        });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "บันทึกไม่สำเร็จ");
       setOpen(false);
+      setEditSheetRow(null);
       setValues(getInitialStringValues(form));
       router.refresh();
     } catch (caught) {
@@ -84,21 +111,23 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
 
   return (
     <>
-      <div className={open ? "module-bar module-bar-hidden" : "module-bar"}>
-        <button type="button" className="primary module-open-button" onClick={() => setOpen(true)}>
-          <Plus size={16} />
-          <span>{buttonLabel}</span>
-        </button>
-      </div>
+      {!hideLauncher ? (
+        <div className={open ? "module-bar module-bar-hidden" : "module-bar"}>
+          <button type="button" className="primary module-open-button" onClick={() => setOpen(true)}>
+            <Plus size={16} />
+            <span>{buttonLabel}</span>
+          </button>
+        </div>
+      ) : null}
       {open ? (
         <div className="modal-backdrop" role="presentation">
           <form className={relaxed ? "modal-card modal-card-relaxed" : "modal-card"} role="dialog" aria-modal="true" aria-labelledby="form-modal-title" aria-busy={saving} onSubmit={submitForm}>
             <header className="modal-header">
               <div>
-                <h3 id="form-modal-title">{title}</h3>
+                <h3 id="form-modal-title">{isEditing ? title.replace(/^เพิ่ม/, "แก้ไข") : title}</h3>
                 <span>{form.tableName}</span>
               </div>
-              <button type="button" className="icon-button" aria-label="ปิด" disabled={saving} onClick={() => setOpen(false)}>
+              <button type="button" className="icon-button" aria-label="ปิด" disabled={saving} onClick={() => { setOpen(false); setEditSheetRow(null); }}>
                 <X size={18} />
               </button>
             </header>
@@ -118,6 +147,7 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
                         form,
                         values[field.name] || "",
                         values,
+                        isEditing,
                         value => updateValue(field, value),
                         enumListSearch[field.name] || "",
                         value => setEnumListSearch(current => ({ ...current, [field.name]: value }))
@@ -130,7 +160,7 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
               </fieldset>
             </div>
             <footer className="modal-footer">
-              <button type="button" disabled={saving} onClick={() => setOpen(false)}>ยกเลิก</button>
+              <button type="button" disabled={saving} onClick={() => { setOpen(false); setEditSheetRow(null); }}>ยกเลิก</button>
               <button type={submitPath ? "submit" : "button"} className="primary" disabled={saving || !submitPath}>
                 <Save size={16} />
                 <span>{saving ? "กำลังบันทึก" : "บันทึก"}</span>
@@ -148,10 +178,12 @@ function renderField(
   form: FormPayload,
   value: string,
   currentValues: Record<string, string>,
+  isEditing: boolean,
   onChange: (value: string) => void,
   enumSearchValue = "",
   onEnumSearchChange: (value: string) => void = () => {}
 ) {
+  const readOnly = Boolean(field.readonly || (isEditing && field.readonlyOnEdit));
   if (field.type === "Image" || field.type === "File") {
     return (
       <div className="file-control">
@@ -159,7 +191,8 @@ function renderField(
           type="file"
           name={field.name}
           accept={field.type === "Image" ? "image/*" : undefined}
-          disabled={field.readonly}
+          multiple={field.type === "Image"}
+          disabled={readOnly}
         />
         {field.type === "Image" ? <small>บนมือถือเลือกถ่ายรูปหรือแนบจากเครื่องได้</small> : null}
       </div>
@@ -168,6 +201,19 @@ function renderField(
 
   if (field.type === "Ref" || field.type === "Enum" || field.type === "EnumList") {
     const options = getFieldOptions(field, form, currentValues);
+    if (field.type === "Ref" && field.name === "ร้านค้า") {
+      return (
+        <SearchableRefSelect
+          name={field.name}
+          value={value}
+          options={options}
+          readOnly={readOnly}
+          placeholder="พิมพ์ชื่อร้านค้า หรือรหัสร้านค้า"
+          onChange={onChange}
+        />
+      );
+    }
+
     if (field.type === "EnumList") {
       const selectedValues = splitEnumListValue(value);
       const optionValues = new Set(options.map(option => String(option.value)));
@@ -199,7 +245,7 @@ function renderField(
                 selectedValues.map((selectedValue, index) => (
                   <span className="enum-token" key={`${selectedValue}-${index}`}>
                     <span>{selectedValue}</span>
-                    {!field.readonly ? (
+                    {!readOnly ? (
                       <button type="button" aria-label={`ลบ ${selectedValue}`} onClick={() => removeSelectedValue(selectedValue)}>
                         <X size={12} />
                       </button>
@@ -216,7 +262,7 @@ function renderField(
             type="search"
             className="enum-list-search"
             value={enumSearchValue}
-            readOnly={field.readonly}
+            readOnly={readOnly}
             placeholder="ค้นหารายละเอียดงาน"
             onChange={event => onEnumSearchChange(event.target.value)}
           />
@@ -230,7 +276,7 @@ function renderField(
                     type="checkbox"
                     value={optionValue}
                     checked={checked}
-                    disabled={field.readonly}
+                    disabled={readOnly}
                     onChange={event => {
                       const nextValues = event.target.checked
                         ? [...selectedOptionValues, optionValue]
@@ -248,7 +294,7 @@ function renderField(
             type="text"
             className="enum-list-custom"
             value={customValue}
-            readOnly={field.readonly}
+            readOnly={readOnly}
             placeholder="เพิ่มงานอื่น คั่นด้วย comma"
             onChange={event => setSelectedValues(selectedOptionValues, event.target.value)}
           />
@@ -272,7 +318,7 @@ function renderField(
                     name={field.name}
                     value={optionValue}
                     checked={checked}
-                    disabled={field.readonly}
+                    disabled={readOnly}
                     onClick={() => {
                       if (checked && !field.required) onChange("");
                     }}
@@ -288,7 +334,7 @@ function renderField(
               type="number"
               className="choice-custom-input"
               value={customVatValue}
-              readOnly={field.readonly}
+              readOnly={readOnly}
               placeholder="กำหนด VAT เอง"
               onChange={event => onChange(event.target.value)}
             />
@@ -298,7 +344,7 @@ function renderField(
     }
 
     return (
-      <select name={field.name} value={value} disabled={field.readonly} onChange={event => onChange(event.target.value)}>
+      <select name={field.name} value={value} disabled={readOnly} onChange={event => onChange(event.target.value)}>
         <option value=""></option>
         {options.map(option => (
           <option key={String(option.value)} value={String(option.value)}>
@@ -314,7 +360,7 @@ function renderField(
       <textarea
         name={field.name}
         value={value}
-        readOnly={field.readonly}
+        readOnly={readOnly}
         rows={3}
         onChange={event => onChange(event.target.value)}
       />
@@ -327,14 +373,115 @@ function renderField(
       type={type}
       name={field.name}
       value={value}
-      readOnly={field.readonly || field.readonlyOnEdit}
+      readOnly={readOnly}
       onChange={event => onChange(event.target.value)}
     />
   );
 }
 
+function SearchableRefSelect({
+  name,
+  value,
+  options,
+  readOnly,
+  placeholder,
+  onChange
+}: {
+  name: string;
+  value: string;
+  options: RefOption[];
+  readOnly: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const selectedLabel = optionLabel(options.find(option => String(option.value) === value));
+  const [query, setQuery] = useState(selectedLabel);
+  const [open, setOpen] = useState(false);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredOptions = normalizedQuery
+    ? options.filter(option => optionSearchText(option).includes(normalizedQuery)).slice(0, 80)
+    : options.slice(0, 80);
+
+  useEffect(() => {
+    setQuery(selectedLabel);
+  }, [selectedLabel]);
+
+  function updateQuery(nextQuery: string) {
+    setQuery(nextQuery);
+    setOpen(true);
+    const exact = options.find(option => {
+      const optionValue = String(option.value);
+      const label = optionLabel(option);
+      return optionValue === nextQuery || label === nextQuery;
+    });
+    onChange(exact ? String(exact.value) : "");
+  }
+
+  function selectOption(option: RefOption) {
+    onChange(String(option.value));
+    setQuery(optionLabel(option));
+    setOpen(false);
+  }
+
+  return (
+    <div className="searchable-ref" onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+    }}>
+      <input type="hidden" name={name} value={value} />
+      <input
+        type="search"
+        className="searchable-ref-input"
+        value={query}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        autoComplete="off"
+        onFocus={() => setOpen(true)}
+        onChange={event => updateQuery(event.target.value)}
+      />
+      {open && !readOnly ? (
+        <div className="searchable-ref-menu" role="listbox" aria-label={name}>
+          {filteredOptions.length ? (
+            filteredOptions.map(option => {
+              const optionValue = String(option.value);
+              return (
+                <button
+                  type="button"
+                  className={optionValue === value ? "searchable-ref-option is-active" : "searchable-ref-option"}
+                  key={optionValue}
+                  role="option"
+                  aria-selected={optionValue === value}
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={() => selectOption(option)}
+                >
+                  <strong>{optionLabel(option)}</strong>
+                  <span>{optionValue}</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="searchable-ref-empty">ไม่พบร้านค้า</div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function optionLabel(option: RefOption | undefined) {
+  if (!option) return "";
+  return String(option.label || option.value || "");
+}
+
+function optionSearchText(option: RefOption) {
+  return `${String(option.value || "")} ${optionLabel(option)}`.toLowerCase();
+}
+
 function getInitialStringValues(form: FormPayload) {
   return Object.fromEntries(form.schema.map(field => [field.name, String(form.initialValues[field.name] ?? "")]));
+}
+
+function getRowStringValues(form: FormPayload, row: SheetRow) {
+  return Object.fromEntries(form.schema.map(field => [field.name, String(row[field.name] ?? form.initialValues[field.name] ?? "")]));
 }
 
 function splitEnumListValue(value: string) {
@@ -394,6 +541,10 @@ function normalizeDependentValues(values: Record<string, string>, changedField: 
 }
 
 function applyLocalFormulas(values: Record<string, string>, tableName: string) {
+  if (tableName === TABLES.PROJECT) {
+    if (hasValue(values["ยอดงาน"])) values["ยอดรวม vat"] = String(toNumber(values["ยอดงาน"]) * 1.07);
+    return;
+  }
   if (tableName !== TABLES.CONTRACT_WORK) return;
   const hireAmount = toNumber(values["ยอดเงินจ้าง"]);
   const paidAmount = toNumber(values["ยอดเงินจ่าย"]);

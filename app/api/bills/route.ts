@@ -37,20 +37,25 @@ async function readBillRow(request: NextRequest): Promise<SheetRow> {
   }
 
   const billImageField = findFileField(formData, BILL_IMAGE_COLUMNS);
-  const billImage = billImageField ? formData.get(billImageField) : null;
-  if (isFile(billImage) && billImage.size > 0) {
-    row[billImageField || BILL_IMAGE_COLUMNS[0]] = await uploadBillImage(billImage, {
-      sequence: firstRowValue(row, SEQUENCE_COLUMNS),
-      projectId: String(row["ID Project"] || ""),
-      billDate: firstRowValue(row, BILL_DATE_COLUMNS)
-    });
+  const billImages = billImageField ? formData.getAll(billImageField).filter(isUsableFile) : [];
+  if (billImageField && billImages.length) {
+    const uploadedUrls = await Promise.all(
+      billImages.map((billImage, index) =>
+        uploadBillImage(billImage, {
+          sequence: sequenceWithIndex(firstRowValue(row, SEQUENCE_COLUMNS), index, billImages.length),
+          projectId: String(row["ID Project"] || ""),
+          billDate: firstRowValue(row, BILL_DATE_COLUMNS)
+        })
+      )
+    );
+    row[billImageField] = uploadedUrls.join(", ");
   }
 
   return row;
 }
 
 function findFileField(formData: FormData, columns: string[]) {
-  return columns.find(column => isFile(formData.get(column)));
+  return columns.find(column => formData.getAll(column).some(isUsableFile));
 }
 
 function firstRowValue(row: SheetRow, columns: string[]) {
@@ -69,6 +74,16 @@ function isFile(value: FormDataEntryValue | null): value is File {
     "name" in value &&
     "size" in value
   );
+}
+
+function isUsableFile(value: FormDataEntryValue): value is File {
+  return isFile(value) && value.size > 0;
+}
+
+function sequenceWithIndex(sequence: string, index: number, total: number) {
+  if (total <= 1) return sequence;
+  const suffix = String(index + 1).padStart(2, "0");
+  return sequence ? `${sequence}-${suffix}` : suffix;
 }
 
 function errorMessage(error: unknown) {
