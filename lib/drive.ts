@@ -7,6 +7,12 @@ type UploadBillImageContext = {
   billDate?: string;
 };
 
+type UploadTableImageContext = {
+  tableName: string;
+  rowKey?: string;
+  columnName?: string;
+};
+
 function getCredentials() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
@@ -37,6 +43,53 @@ export async function uploadBillImage(file: File, context: UploadBillImageContex
   }
 
   const fileName = buildBillFileName(file.name, context);
+  const mimeType = file.type || "application/octet-stream";
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const webAppUrl = process.env.GOOGLE_DRIVE_UPLOAD_WEBAPP_URL;
+
+  if (webAppUrl) {
+    return uploadViaAppsScript({
+      webAppUrl,
+      folderId,
+      fileName,
+      mimeType,
+      buffer
+    });
+  }
+
+  const drive = getDriveClient();
+  await assertBillFolderReady(drive, folderId);
+  const result = await createDriveFile(drive, {
+    fileName,
+    folderId,
+    mimeType,
+    buffer
+  });
+
+  const fileId = result.data.id;
+  if (!fileId) throw new Error("Google Drive upload did not return a file id.");
+
+  if (process.env.GOOGLE_DRIVE_PUBLIC_UPLOADS === "1") {
+    await drive.permissions.create({
+      fileId,
+      supportsAllDrives: true,
+      requestBody: {
+        role: "reader",
+        type: "anyone"
+      }
+    });
+  }
+
+  return result.data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
+}
+
+export async function uploadTableImage(file: File, context: UploadTableImageContext) {
+  const folderId = process.env.GOOGLE_DRIVE_BILL_FOLDER_ID;
+  if (!folderId) {
+    throw new Error("Missing GOOGLE_DRIVE_BILL_FOLDER_ID. Share a Drive folder with the service account and set the folder id.");
+  }
+
+  const fileName = buildTableFileName(file.name, context);
   const mimeType = file.type || "application/octet-stream";
   const buffer = Buffer.from(await file.arrayBuffer());
   const webAppUrl = process.env.GOOGLE_DRIVE_UPLOAD_WEBAPP_URL;
@@ -200,6 +253,17 @@ function buildBillFileName(originalName: string, context: UploadBillImageContext
     context.sequence ? `bill-${context.sequence}` : "bill",
     context.projectId ? `project-${context.projectId}` : "",
     context.billDate || "",
+    timestamp()
+  ].filter(Boolean);
+  return `${safeFileName(parts.join("_"))}${extension}`;
+}
+
+function buildTableFileName(originalName: string, context: UploadTableImageContext) {
+  const extension = getExtension(originalName);
+  const parts = [
+    context.tableName,
+    context.rowKey || "row",
+    context.columnName || "image",
     timestamp()
   ].filter(Boolean);
   return `${safeFileName(parts.join("_"))}${extension}`;

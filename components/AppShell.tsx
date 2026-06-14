@@ -13,6 +13,7 @@ import {
   FolderKanban,
   Gauge,
   IdCard,
+  Menu,
   Plus,
   ReceiptText,
   RefreshCw,
@@ -52,12 +53,14 @@ function hrefFor(view: (typeof PRIMARY_VIEWS)[number]) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileSearch, setMobileSearch] = useState("");
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
   const router = useRouter();
   const mobileViews = PRIMARY_VIEWS.filter(view => MOBILE_VIEW_IDS.includes(view.id));
+  const mobileMenuViews = PRIMARY_VIEWS.filter(view => view.position === "menu");
   const activeView = PRIMARY_VIEWS.find(view => {
     const href = hrefFor(view);
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -68,11 +71,27 @@ export function AppShell({ children }: { children: ReactNode }) {
     const search = params.get("search") || "";
     setMobileSearch(search);
     setMobileSearchOpen(Boolean(search));
+    setMobileMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
     if (mobileSearchOpen) mobileSearchInputRef.current?.focus();
   }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.classList.add("has-mobile-drawer");
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.classList.remove("has-mobile-drawer");
+    };
+  }, [mobileMenuOpen]);
 
   function pushSearch(value: string) {
     const params = new URLSearchParams(window.location.search);
@@ -103,6 +122,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className={collapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
       <div className="mobile-chrome" aria-label="mobile navigation">
         <div className="mobile-topbar">
+          <button
+            type="button"
+            className="mobile-icon-button mobile-menu-button"
+            aria-label="เปิดเมนู"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu size={23} />
+          </button>
           {mobileSearchOpen ? (
             <form className="mobile-search-form" onSubmit={handleMobileSearchSubmit}>
               <input
@@ -142,6 +170,40 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
         </div>
+        <div
+          className={mobileMenuOpen ? "mobile-drawer-backdrop is-open" : "mobile-drawer-backdrop"}
+          aria-hidden="true"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+        <aside className={mobileMenuOpen ? "mobile-drawer is-open" : "mobile-drawer"} aria-label="เมนูเพิ่มเติม">
+          <div className="mobile-drawer-head">
+            <div>
+              <strong>Cost Test</strong>
+              <span>Costcode</span>
+            </div>
+            <button type="button" className="mobile-drawer-close" aria-label="ปิดเมนู" onClick={() => setMobileMenuOpen(false)}>
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="mobile-drawer-nav">
+            {mobileMenuViews.map(view => {
+              const href = hrefFor(view);
+              const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const Icon = ICONS[view.id];
+              return (
+                <Link key={view.id} className={active ? "active" : ""} href={href} onClick={() => setMobileMenuOpen(false)}>
+                  <span className="mobile-drawer-icon" aria-hidden="true">
+                    {Icon ? <Icon size={19} strokeWidth={2.1} /> : view.name.slice(0, 1)}
+                  </span>
+                  <span>{view.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mobile-drawer-foot">
+            <span>iirn.studio@gmail.com</span>
+          </div>
+        </aside>
         <nav className="mobile-bottomnav">
           {mobileViews.map(view => {
             const href = hrefFor(view);

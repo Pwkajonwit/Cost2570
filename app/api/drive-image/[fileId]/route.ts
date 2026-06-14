@@ -37,7 +37,7 @@ export async function GET(_request: NextRequest, { params }: DriveImageParams) {
     return new NextResponse(body, {
       headers: {
         "cache-control": "private, max-age=300",
-        "content-disposition": `inline; filename="${safeDownloadName(metadata.data.name || fileId)}"`,
+        "content-disposition": contentDisposition(metadata.data.name || fileId),
         "content-type": mimeType
       }
     });
@@ -50,6 +50,20 @@ function isSafeDriveFileId(value: string) {
   return /^[A-Za-z0-9_-]{10,200}$/.test(value);
 }
 
-function safeDownloadName(value: string) {
-  return value.replace(/[\\/:*?"<>|]/g, "-").slice(0, 120);
+function contentDisposition(fileName: string) {
+  const asciiName = safeAsciiDownloadName(fileName);
+  const encodedName = encodeURIComponent(fileName.replace(/[\\/:*?"<>|]/g, "-").slice(0, 160));
+  return `inline; filename="${asciiName}"; filename*=UTF-8''${encodedName}`;
+}
+
+function safeAsciiDownloadName(value: string) {
+  const extension = value.match(/\.[A-Za-z0-9]{1,12}$/)?.[0] || "";
+  const baseName = value
+    .replace(extension, "")
+    .replace(/[^\x20-\x7E]+/g, "-")
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "image";
+  return `${baseName}${extension || ".jpg"}`;
 }

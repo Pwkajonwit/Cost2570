@@ -76,10 +76,15 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
     const body = new FormData();
     body.set("tableName", form.tableName);
     Object.entries(values).forEach(([key, value]) => body.append(key, value));
+    if (isEditing && editSheetRow !== null) body.set("sheetRow", String(editSheetRow));
 
+    let hasFiles = false;
     formElement.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach(input => {
       Array.from(input.files || []).forEach(file => {
-        if (file.size > 0) body.append(input.name, file);
+        if (file.size > 0) {
+          hasFiles = true;
+          body.append(input.name, file);
+        }
       });
     });
 
@@ -87,11 +92,16 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
     setError("");
     try {
       const response = isEditing
-        ? await fetch(submitPath, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tableName: form.tableName, sheetRow: editSheetRow, values })
-        })
+        ? hasFiles
+          ? await fetch(submitPath, {
+            method: "PATCH",
+            body
+          })
+          : await fetch(submitPath, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tableName: form.tableName, sheetRow: editSheetRow, values })
+          })
         : await fetch(submitPath, {
           method: "POST",
           body
@@ -305,12 +315,13 @@ function renderField(
     if (field.inputMode === "buttons") {
       const optionValues = new Set(options.map(option => String(option.value)));
       const customVatValue = field.name === "vat" && value && !optionValues.has(value) ? value : "";
+      const vatChoiceValue = field.name === "vat" && customVatValue ? "ระบุเอง" : value;
       return (
-        <div className={field.name === "vat" ? "choice-control choice-control-inline" : "choice-control"}>
+        <div className={field.name === "vat" ? "choice-control choice-control-vat" : "choice-control"}>
           <div className="choice-grid" role="radiogroup" aria-label={field.name}>
             {options.map(option => {
               const optionValue = String(option.value);
-              const checked = value === optionValue;
+              const checked = field.name === "vat" ? vatChoiceValue === optionValue : value === optionValue;
               return (
                 <label className={checked ? "choice-option is-active" : "choice-option"} key={optionValue}>
                   <input
@@ -322,14 +333,20 @@ function renderField(
                     onClick={() => {
                       if (checked && !field.required) onChange("");
                     }}
-                    onChange={event => onChange(event.target.value)}
+                    onChange={event => {
+                      if (field.name === "vat" && event.target.value === "ระบุเอง") {
+                        onChange(customVatValue || "");
+                        return;
+                      }
+                      onChange(event.target.value);
+                    }}
                   />
                   <span>{String(option.label)}</span>
                 </label>
               );
             })}
           </div>
-          {field.name === "vat" ? (
+          {field.name === "vat" && vatChoiceValue === "ระบุเอง" ? (
             <input
               type="number"
               className="choice-custom-input"

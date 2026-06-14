@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Eye, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { BillImageThumbnail } from "@/components/BillImageThumbnail";
 import type { RowValue, SheetRow } from "@/lib/types";
 
 type BusyState = "add" | "edit" | "delete" | null;
@@ -319,7 +320,7 @@ export function ManageTableClient({
                                 onChange={event => updateDraft(id, column, event.target.value)}
                               />
                             ) : (
-                              formatValue(row[column])
+                              isImageColumn(column) ? <BillImageThumbnail value={row[column]} /> : formatValue(row[column])
                             )}
                           </td>
                         );
@@ -419,6 +420,10 @@ function formatValue(value: RowValue | undefined) {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") return value.toLocaleString("th-TH", { maximumFractionDigits: 2 });
   return String(value);
+}
+
+function isImageColumn(column: string) {
+  return column === "image" || column.includes("รูปถ่าย") || column.toLowerCase().includes("image");
 }
 
 function isAmountColumn(column: string) {

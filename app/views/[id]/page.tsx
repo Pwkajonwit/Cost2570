@@ -32,7 +32,7 @@ export default async function ViewPage({ params, searchParams }: ViewPageProps) 
           {search || (view.type !== "dashboard" && view.id !== "contract-open") ? <p>{search ? `ค้นหา: ${search}` : view.table || ""}</p> : null}
         </div>
       </header>
-      {await renderView(view, search, query)}
+      {await renderView(view, search, query, displayName)}
     </>
   );
 }
@@ -40,7 +40,8 @@ export default async function ViewPage({ params, searchParams }: ViewPageProps) 
 async function renderView(
   view: NonNullable<ReturnType<typeof getViewById>>,
   search: string,
-  query?: Record<string, string | string[] | undefined>
+  query?: Record<string, string | string[] | undefined>,
+  displayName = view.name
 ) {
   if (view.id === "dashboard-main") return <MainDashboard />;
   if (view.id === "withdraw-request") {
@@ -75,6 +76,8 @@ async function renderView(
     const columns = getViewColumns(view.name, fallback);
     if (view.position === "menu") {
       const keyColumn = TABLE_KEYS[view.table] || "_RowNumber";
+      const schemaAddEventName = form ? `open-${view.id}-form` : undefined;
+      const schemaEditEventName = form ? `open-${view.id}-edit-form` : undefined;
       return (
         <section className={`content table-view table-view-${view.id} manage-view`}>
           <ManageTableClient
@@ -87,27 +90,27 @@ async function renderView(
             search={search}
             rowLabel="รายการ"
             detailBasePath={view.id === "project-all" ? "/views/project-all" : undefined}
-            addOpenEventName={view.id === "project-all" && form ? "open-project-form" : undefined}
-            editOpenEventName={view.id === "project-all" && form ? "open-project-edit-form" : undefined}
+            addOpenEventName={schemaAddEventName}
+            editOpenEventName={schemaEditEventName}
           />
-          {view.id === "project-all" && form ? (
+          {form ? (
             <>
               <FormModal
                 form={form}
-                title="เพิ่ม Project"
-                buttonLabel="เพิ่ม Project"
+                title={`เพิ่ม ${displayName}`}
+                buttonLabel={`เพิ่ม ${displayName}`}
                 relaxed
                 submitPath="/api/rows"
-                openEventName="open-project-form"
+                openEventName={schemaAddEventName}
                 hideLauncher
               />
               <FormModal
                 form={form}
-                title="แก้ไข Project"
-                buttonLabel="แก้ไข Project"
+                title={`แก้ไข ${displayName}`}
+                buttonLabel={`แก้ไข ${displayName}`}
                 relaxed
                 submitPath="/api/rows"
-                openEventName="open-project-edit-form"
+                openEventName={schemaEditEventName}
                 hideLauncher
               />
             </>
@@ -237,6 +240,6 @@ function getManageFormColumns(columns: string[], headers: string[], keyColumn: s
 }
 
 function usesSchemaForm(viewId: string) {
-  return viewId === "contract-open" || viewId === "project-all";
+  return viewId === "contract-open" || viewId === "project-all" || viewId === "banks";
 }
 

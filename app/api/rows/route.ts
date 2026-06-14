@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearCache } from "@/lib/cache";
 import { PRIMARY_VIEWS, TABLE_KEYS, TABLES, VIEW_COLUMNS } from "@/lib/config";
+import { uploadTableImage } from "@/lib/drive";
 import { applyContractFormulas, applyProjectFormulas } from "@/lib/formulas";
 import { appendRow, deleteRows, getRows, updateRow } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await readPatchBody(request);
     const tableName = String(body.tableName || "");
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
@@ -123,7 +124,46 @@ async function readPostBody(request: NextRequest) {
     if (key === "tableName" || isFile(value)) continue;
     row[key] = typeof value === "string" ? value : "";
   }
+  await attachUploadedFiles(formData, tableName, row);
   return { tableName, row };
+}
+
+async function readPatchBody(request: NextRequest) {
+  const contentType = request.headers.get("content-type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return request.json();
+  }
+
+  const formData = await request.formData();
+  const tableName = String(formData.get("tableName") || "");
+  const sheetRow = Number(formData.get("sheetRow"));
+  const values: SheetRow = {};
+  for (const [key, value] of formData.entries()) {
+    if (key === "tableName" || key === "sheetRow" || isFile(value)) continue;
+    values[key] = typeof value === "string" ? value : "";
+  }
+  await attachUploadedFiles(formData, tableName, values);
+  return { tableName, sheetRow, values };
+}
+
+async function attachUploadedFiles(formData: FormData, tableName: string, row: SheetRow) {
+  const filesByColumn = new Map<string, File[]>();
+  for (const [key, value] of formData.entries()) {
+    if (!isFile(value) || value.size <= 0) continue;
+    if (!value.type.startsWith("image/")) continue;
+    filesByColumn.set(key, [...(filesByColumn.get(key) || []), value]);
+  }
+
+  for (const [columnName, files] of filesByColumn) {
+    const uploadedUrls = await Promise.all(
+      files.map(file => uploadTableImage(file, {
+        tableName,
+        rowKey: String(row[TABLE_KEYS[tableName] || ""] || row.id_bank || row["ID Project"] || ""),
+        columnName
+      }))
+    );
+    row[columnName] = uploadedUrls.join(", ");
+  }
 }
 
 function isFile(value: FormDataEntryValue): value is File {
