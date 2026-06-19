@@ -153,6 +153,8 @@ async function renderView(
             label: sort === "latest" ? "ล่าสุดก่อน" : "เก่าสุดก่อน",
             direction: sort
           } : undefined}
+          detailBasePath={view.id === "contract-open" ? "/views/contract-open" : undefined}
+          detailKeyColumn={view.id === "contract-open" ? "id_Conwork" : undefined}
         />
       </section>
     );

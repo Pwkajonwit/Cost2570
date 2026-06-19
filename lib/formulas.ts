@@ -35,8 +35,8 @@ export async function hydrateContractRows(rows: SheetRow[]) {
 
 async function getContractFormulaContext() {
   const [projects, dataRows] = await Promise.all([
-    getRows(TABLES.PROJECT, 120_000),
-    getRows(TABLES.DATA, 120_000)
+    getRows(TABLES.PROJECT, 30_000),
+    getRows(TABLES.DATA, 15_000)
   ]);
   return { projects, paidByContract: contractPaidAmounts(dataRows) };
 }
@@ -51,7 +51,7 @@ function applyContractFormulasWithContext(
   }
   const key = contractPaymentKey(row);
   const paid = key ? context.paidByContract[key] || 0 : 0;
-  const hireAmount = toNumber(firstValue(row, ["ยอดเงินจ้าง", "à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™à¸ˆà¹‰à¸²à¸‡"]));
+  const hireAmount = toNumber(firstValue(row, ["ยอดเงินจ้าง"]));
   row["ยอดเงินจ่าย"] = paid;
   row["ค่าแรงคงเหลือ"] = hireAmount - paid;
   return row;
@@ -61,17 +61,19 @@ function contractPaidAmounts(rows: SheetRow[]) {
   return rows.reduce<Record<string, number>>((totals, row) => {
     const key = contractPaymentKey(row);
     if (!key) return totals;
-    totals[key] = (totals[key] || 0)
-      + toNumber(firstValue(row, ["ค่าแรง", "à¸„à¹ˆà¸²à¹à¸£à¸‡"]))
-      + toNumber(firstValue(row, ["พนักงาน", "à¸žà¸™à¸±à¸à¸‡à¸²à¸™"]))
-      + toNumber(firstValue(row, ["อื่นๆ", "à¸­à¸·à¹ˆà¸™à¹†"]));
+    const directAmount =
+      toNumber(firstValue(row, ["ค่าแรง"])) +
+      toNumber(firstValue(row, ["พนักงาน"])) +
+      toNumber(firstValue(row, ["อื่นๆ"]));
+    const fallbackAmount = toNumber(firstValue(row, ["ยอดเงิน", "ยอดโอน"]));
+    totals[key] = (totals[key] || 0) + (directAmount || fallbackAmount);
     return totals;
   }, {});
 }
 
 function contractPaymentKey(row: SheetRow) {
   const projectId = String(row["ID Project"] || "").trim();
-  const contractId = String(firstValue(row, ["id_Conwork", "ผู้รับเหมา", "à¸œà¸¹à¹‰à¸£à¸±à¸šà¹€à¸«à¸¡à¸²"]) || "").trim();
+  const contractId = String(firstValue(row, ["id_Conwork", "ผู้รับเหมา"]) || "").trim();
   return projectId && contractId ? `${projectId}|${contractId}` : "";
 }
 
@@ -110,12 +112,12 @@ function applyBillFormulasWithContext(
 
   row["ยอดเงิน"] = amountFields.reduce((sum, field) => sum + toNumber(row[field]), 0);
   row["ค่าแรง+พนักงาน+อื่น"] = toNumber(row["ค่าแรง"]) + toNumber(row["พนักงาน"]) + toNumber(row["อื่นๆ"]);
-  row["3เปอร์"] = hasValue(row["หัก"]) ? toNumber(row["ค่าแรง+พนักงาน+อื่น"]) * toNumber(row["หัก"]) * 0.01 : "";
+  row["3เปอร์"] = hasValue(row["หัก"]) ? deductAmount(row) : "";
   row["รวม"] = hasValue(row["หัก"]) ? toNumber(row["ค่าแรง+พนักงาน+อื่น"]) - toNumber(row["3เปอร์"]) : "";
   row["ค่าแรง(หัก)"] = hasValue(row["หัก"]) ? laborDeductRate(row) : "";
   row["ยอดโอน(มีvat)"] = row["ยอดเงิน"];
-  row["ยอดโอน(มีหัก)"] = hasValue(row["หัก"]) ? toNumber(row["ยอดเงิน"]) * toNumber(row["ค่าแรง(หัก)"]) : "";
-  row["ยอดโอน(vat,หัก)"] = hasValue(row["vat"]) && hasValue(row["หัก"]) ? toNumber(row["ยอดเงิน"]) * 104 / 107 : "";
+  row["ยอดโอน(มีหัก)"] = hasValue(row["หัก"]) ? transferAmountWithDeduct(row) : "";
+  row["ยอดโอน(vat,หัก)"] = hasValue(row["vat"]) && hasValue(row["หัก"]) ? transferAmountWithVatAndDeduct(row) : "";
   row["ยอดโอน"] = transferAmount(row);
   row["ร้าน/บุคคล"] = vendorName(row, context.stores, contract);
   row["สินค้า/ทำงาน"] = `${row["สินค้า"] || ""}${row["รายละเอียดงาน"] || ""}`;
@@ -134,18 +136,40 @@ function transferAmount(row: SheetRow) {
   const hasDeduct = hasValue(row["หัก"]);
   if (!amount) return "";
   if (!hasVat && !hasDeduct) return amount;
-  if (hasVat && hasDeduct) return amount * 104 / 107;
+  if (hasVat && hasDeduct) return transferAmountWithVatAndDeduct(row);
   if (hasVat) return amount;
+  return transferAmountWithDeduct(row);
+}
+
+function deductAmount(row: SheetRow) {
+  if (hasValue(row["จำนวนหัก"])) return toNumber(row["จำนวนหัก"]);
+  return toNumber(row["ค่าแรง+พนักงาน+อื่น"]) * toNumber(row["หัก"]) * 0.01;
+}
+
+function transferAmountWithDeduct(row: SheetRow) {
+  const amount = toNumber(row["ยอดเงิน"]);
+  if (hasValue(row["จำนวนหัก"])) {
+    return (isCompanyLaborStatus(row) ? amount * 1.07 : amount) - toNumber(row["จำนวนหัก"]);
+  }
   return amount * laborDeductRate(row);
+}
+
+function transferAmountWithVatAndDeduct(row: SheetRow) {
+  const amount = toNumber(row["ยอดเงิน"]);
+  if (hasValue(row["จำนวนหัก"])) return amount - toNumber(row["จำนวนหัก"]);
+  return amount * 104 / 107;
 }
 
 function laborDeductRate(row: SheetRow) {
   const deduct = toNumber(row["หัก"]);
-  const status = String(row["statusค่าแรง"] || "");
   const companyRates: Record<number, number> = { 1: 1.06, 3: 1.04, 5: 1.02, 8: 0.99 };
   const personRates: Record<number, number> = { 1: 0.99, 3: 0.97, 5: 0.95, 8: 0.92 };
-  if (status === "บริษัท") return companyRates[deduct] ?? 1 - (deduct / 100);
+  if (isCompanyLaborStatus(row)) return companyRates[deduct] ?? 1.07 - (deduct / 100);
   return personRates[deduct] ?? 1 - (deduct / 100);
+}
+
+function isCompanyLaborStatus(row: SheetRow) {
+  return String(row["statusค่าแรง"] || "") === "บริษัท";
 }
 
 function hasValue(value: unknown) {

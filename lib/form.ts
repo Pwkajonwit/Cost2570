@@ -112,7 +112,7 @@ export async function getInitialValues(tableName: string): Promise<SheetRow> {
   const values: SheetRow = {};
   for (const column of getFormSchema(tableName)) {
     if (!column.initialValue) continue;
-    if (column.initialValue === "today") values[column.name] = new Date().toISOString().slice(0, 10);
+    if (column.initialValue === "today") values[column.name] = tableName === TABLES.DATA ? formatSheetDate(new Date()) : new Date().toISOString().slice(0, 10);
     if (column.initialValue === "nextDataSequence") values[column.name] = String(await nextDataSequence());
     if (column.initialValue === "nextProjectId") values[column.name] = String(await nextProjectId());
     if (column.initialValue === "nextContractWorkId") values[column.name] = await nextContractWorkId();
@@ -157,4 +157,8 @@ async function nextBankId() {
     return Math.max(max, match ? Number(match[1]) : 0);
   }, 100) + 1;
   return `Ba${next}`;
+}
+
+function formatSheetDate(date: Date) {
+  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 }

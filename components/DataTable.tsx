@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, ChevronLeft, ChevronRight, Eye, List } from "lucide-react";
 import type { ReactNode } from "react";
 import { BillImageThumbnail } from "@/components/BillImageThumbnail";
 import type { SheetRow } from "@/lib/types";
@@ -23,11 +23,13 @@ type DataTableProps = {
     label: string;
     direction: "latest" | "oldest";
   };
+  detailBasePath?: string;
+  detailKeyColumn?: string;
 };
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [50, 80, 100, 200];
 
-export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle, rowLabel = "rows", pagination, sortToggle }: DataTableProps) {
+export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle, rowLabel = "rows", pagination, sortToggle, detailBasePath, detailKeyColumn }: DataTableProps) {
   const totalRows = rows.length;
   const pageSize = pagination ? clampPageSize(pagination.pageSize, pagination.pageSizeOptions) : limit;
   const totalPages = pagination ? Math.max(1, Math.ceil(totalRows / pageSize)) : 1;
@@ -58,11 +60,26 @@ export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle,
         <div className="table-wrap">
           <table>
             <thead>
-              <tr>{columns.map(column => <th key={column}>{column}</th>)}</tr>
+              <tr>
+                {detailBasePath ? <th className="table-detail-col">ดู</th> : null}
+                {columns.map(column => <th key={column}>{column}</th>)}
+              </tr>
             </thead>
             <tbody>
               {visibleRows.map((row, index) => (
                 <tr key={String(row._sheetRow || row[columns[0]] || index)}>
+                  {detailBasePath ? (
+                    <td className="table-detail-col" data-label="ดู">
+                      <Link
+                        className="detail-link-button detail-icon-button"
+                        href={`${detailBasePath}/${encodeURIComponent(String(row[detailKeyColumn || columns[0]] || ""))}`}
+                        aria-label="ดูรายละเอียด"
+                        title="ดูรายละเอียด"
+                      >
+                        <Eye size={16} />
+                      </Link>
+                    </td>
+                  ) : null}
                   {columns.map(column => (
                     <td key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-label={column}>
                       {renderCell(column, row[column])}

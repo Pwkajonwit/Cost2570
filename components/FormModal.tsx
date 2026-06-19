@@ -277,11 +277,11 @@ function renderField(
             onChange={event => onEnumSearchChange(event.target.value)}
           />
           <div className="enum-list-options" role="group" aria-label={field.name}>
-            {filteredOptions.map(option => {
+            {filteredOptions.map((option, index) => {
               const optionValue = String(option.value);
               const checked = selectedValues.includes(optionValue);
               return (
-                <label className={checked ? "enum-list-option is-active" : "enum-list-option"} key={optionValue}>
+                <label className={checked ? "enum-list-option is-active" : "enum-list-option"} key={`${optionValue}-${index}`}>
                   <input
                     type="checkbox"
                     value={optionValue}
@@ -312,18 +312,19 @@ function renderField(
       );
     }
 
-    if (field.inputMode === "buttons") {
-      const optionValues = new Set(options.map(option => String(option.value)));
-      const customVatValue = field.name === "vat" && value && !optionValues.has(value) ? value : "";
-      const vatChoiceValue = field.name === "vat" && customVatValue ? "ระบุเอง" : value;
+  if (field.inputMode === "buttons") {
+    const optionValues = new Set(options.map(option => String(option.value)));
+      const customChoice = customChoiceConfig(field.name);
+      const customValue = customChoice && value && value !== customChoice.optionValue && !optionValues.has(value) ? value : "";
+      const choiceValue = customChoice && customValue ? customChoice.optionValue : value;
       return (
-        <div className={field.name === "vat" ? "choice-control choice-control-vat" : "choice-control"}>
+        <div className={customChoice ? "choice-control choice-control-vat" : "choice-control"}>
           <div className="choice-grid" role="radiogroup" aria-label={field.name}>
-            {options.map(option => {
+            {options.map((option, index) => {
               const optionValue = String(option.value);
-              const checked = field.name === "vat" ? vatChoiceValue === optionValue : value === optionValue;
+              const checked = choiceValue === optionValue;
               return (
-                <label className={checked ? "choice-option is-active" : "choice-option"} key={optionValue}>
+                <label className={checked ? "choice-option is-active" : "choice-option"} key={`${optionValue}-${index}`}>
                   <input
                     type="radio"
                     name={field.name}
@@ -334,8 +335,8 @@ function renderField(
                       if (checked && !field.required) onChange("");
                     }}
                     onChange={event => {
-                      if (field.name === "vat" && event.target.value === "ระบุเอง") {
-                        onChange(customVatValue || "");
+                      if (customChoice && event.target.value === customChoice.optionValue) {
+                        onChange(customValue || customChoice.optionValue);
                         return;
                       }
                       onChange(event.target.value);
@@ -346,13 +347,13 @@ function renderField(
               );
             })}
           </div>
-          {field.name === "vat" && vatChoiceValue === "ระบุเอง" ? (
+          {customChoice && choiceValue === customChoice.optionValue ? (
             <input
               type="number"
               className="choice-custom-input"
-              value={customVatValue}
+              value={customValue}
               readOnly={readOnly}
-              placeholder="กำหนด VAT เอง"
+              placeholder={customChoice.placeholder}
               onChange={event => onChange(event.target.value)}
             />
           ) : null}
@@ -363,8 +364,8 @@ function renderField(
     return (
       <select name={field.name} value={value} disabled={readOnly} onChange={event => onChange(event.target.value)}>
         <option value=""></option>
-        {options.map(option => (
-          <option key={String(option.value)} value={String(option.value)}>
+        {options.map((option, index) => (
+          <option key={`${String(option.value)}-${index}`} value={String(option.value)}>
             {String(option.label)}
           </option>
         ))}
@@ -384,14 +385,17 @@ function renderField(
     );
   }
 
-  const type = field.type === "Date" ? "date" : field.type === "Decimal" || field.type === "Number" ? "number" : "text";
+  const billDateTextMode = form.tableName === TABLES.DATA && field.type === "Date";
+  const type = billDateTextMode ? "text" : field.type === "Date" ? "date" : field.type === "Decimal" || field.type === "Number" ? "number" : "text";
   return (
     <input
       type={type}
       name={field.name}
-      value={value}
+      value={billDateTextMode ? formatBillDateInput(value) : value}
       readOnly={readOnly}
-      onChange={event => onChange(event.target.value)}
+      placeholder={billDateTextMode ? "8/4/2026" : undefined}
+      inputMode={billDateTextMode ? "numeric" : undefined}
+      onChange={event => onChange(billDateTextMode ? normalizeBillDateInput(event.target.value) : event.target.value)}
     />
   );
 }
@@ -458,13 +462,13 @@ function SearchableRefSelect({
       {open && !readOnly ? (
         <div className="searchable-ref-menu" role="listbox" aria-label={name}>
           {filteredOptions.length ? (
-            filteredOptions.map(option => {
+            filteredOptions.map((option, index) => {
               const optionValue = String(option.value);
               return (
                 <button
                   type="button"
                   className={optionValue === value ? "searchable-ref-option is-active" : "searchable-ref-option"}
-                  key={optionValue}
+                  key={`${optionValue}-${index}`}
                   role="option"
                   aria-selected={optionValue === value}
                   onMouseDown={event => event.preventDefault()}
@@ -491,6 +495,12 @@ function optionLabel(option: RefOption | undefined) {
 
 function optionSearchText(option: RefOption) {
   return `${String(option.value || "")} ${optionLabel(option)}`.toLowerCase();
+}
+
+function customChoiceConfig(fieldName: string) {
+  if (fieldName === "vat") return { optionValue: "ระบุเอง", placeholder: "กำหนด VAT เอง" };
+  if (fieldName === "หัก") return { optionValue: "ระบุเอง", placeholder: "กำหนดเปอร์เซ็นต์หักเอง" };
+  return null;
 }
 
 function getInitialStringValues(form: FormPayload) {
@@ -551,6 +561,11 @@ function normalizeDependentValues(values: Record<string, string>, changedField: 
     values["วันจ่าย"] = "";
   }
 
+  if (changedField === "หัก" && !hasValue(values["หัก"])) {
+    values["จำนวนหัก"] = "";
+    values["วันออก 3%"] = "";
+  }
+
   const typeField = form.schema.find(field => field.name === "ประเภท");
   if (typeField && values["ประเภท"] && !getEnumValues(typeField, values).includes(values["ประเภท"])) {
     values["ประเภท"] = "";
@@ -601,6 +616,24 @@ function getFieldClassName(field: FieldSchema) {
 
 function hasValue(value: unknown) {
   return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function formatBillDateInput(value: string) {
+  return normalizeBillDateInput(value);
+}
+
+function normalizeBillDateInput(value: string) {
+  const trimmed = String(value || "").trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) return `${Number(isoMatch[3])}/${Number(isoMatch[2])}/${isoMatch[1]}`;
+
+  const slashMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (slashMatch) {
+    const year = slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3];
+    return `${Number(slashMatch[1])}/${Number(slashMatch[2])}/${year}`;
+  }
+
+  return trimmed;
 }
 
 function toNumber(value: unknown) {

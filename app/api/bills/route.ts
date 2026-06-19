@@ -6,9 +6,10 @@ import { applyBillFormulas } from "@/lib/formulas";
 import { appendRow } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
-const BILL_IMAGE_COLUMNS = ["รูปถ่ายบิล", "à¸£à¸¹à¸›à¸–à¹ˆà¸²à¸¢à¸šà¸´à¸¥"];
-const SEQUENCE_COLUMNS = ["ลำดับ", "à¸¥à¸³à¸”à¸±à¸š"];
-const BILL_DATE_COLUMNS = ["ว/ด/ป", "à¸§/à¸”/à¸›"];
+const BILL_IMAGE_COLUMNS = ["รูปถ่ายบิล"];
+const SEQUENCE_COLUMNS = ["ลำดับ"];
+const BILL_DATE_COLUMNS = ["ว/ด/ป"];
+const STATUS_COLUMNS = ["สถานะ"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
 async function readBillRow(request: NextRequest): Promise<SheetRow> {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    return request.json();
+    return ensureBillStatus(await request.json());
   }
 
   const formData = await request.formData();
@@ -51,6 +52,15 @@ async function readBillRow(request: NextRequest): Promise<SheetRow> {
     row[billImageField] = uploadedUrls.join(", ");
   }
 
+  return ensureBillStatus(row);
+}
+
+function ensureBillStatus(row: SheetRow) {
+  STATUS_COLUMNS.forEach(column => {
+    if (row[column] === undefined || row[column] === null || String(row[column]).trim() === "") {
+      row[column] = "อนุมัติ";
+    }
+  });
   return row;
 }
 
