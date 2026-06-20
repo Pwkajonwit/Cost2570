@@ -13,6 +13,12 @@ type UploadTableImageContext = {
   columnName?: string;
 };
 
+type UploadBillPdfContext = {
+  sequence?: string;
+  projectId?: string;
+  billDate?: string;
+};
+
 function getCredentials() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
@@ -130,6 +136,62 @@ export async function uploadTableImage(file: File, context: UploadTableImageCont
   return result.data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
 }
 
+export async function createBillPdfFromHtml(html: string, context: UploadBillPdfContext = {}) {
+  const folderId = process.env.GOOGLE_DRIVE_BILL_FOLDER_ID;
+  if (!folderId) {
+    throw new Error("Missing GOOGLE_DRIVE_BILL_FOLDER_ID. Share a Drive folder with the service account and set the folder id.");
+  }
+
+  const webAppUrl = process.env.GOOGLE_DRIVE_UPLOAD_WEBAPP_URL;
+  const pdfFileName = buildBillPdfFileName(context);
+
+  if (webAppUrl) {
+    return createPdfViaAppsScript({
+      webAppUrl,
+      folderId,
+      fileName: pdfFileName,
+      html
+    });
+  }
+
+  const drive = getDriveClient();
+  await assertBillFolderReady(drive, folderId);
+
+  const sourceFileName = `${pdfFileName.replace(/\.pdf$/i, "")}-source.html`;
+  const source = await createDriveFile(drive, {
+    fileName: sourceFileName,
+    folderId,
+    mimeType: "application/vnd.google-apps.document",
+    mediaMimeType: "text/html",
+    buffer: Buffer.from(html, "utf8")
+  });
+
+  const sourceId = source.data.id;
+  if (!sourceId) throw new Error("Google Drive PDF source did not return a file id.");
+
+  try {
+    const exported = await drive.files.export(
+      {
+        fileId: sourceId,
+        mimeType: "application/pdf"
+      },
+      { responseType: "arraybuffer" }
+    );
+    const pdfBuffer = Buffer.from(exported.data as ArrayBuffer);
+    const pdf = await createDriveFile(drive, {
+      fileName: pdfFileName,
+      folderId,
+      mimeType: "application/pdf",
+      buffer: pdfBuffer
+    });
+    const pdfId = pdf.data.id;
+    if (!pdfId) throw new Error("Google Drive PDF upload did not return a file id.");
+    return pdf.data.webViewLink || `https://drive.google.com/file/d/${pdfId}/view`;
+  } finally {
+    await drive.files.delete({ fileId: sourceId, supportsAllDrives: true }).catch(() => undefined);
+  }
+}
+
 async function assertBillFolderReady(drive: ReturnType<typeof getDriveClient>, folderId: string) {
   try {
     const result = await drive.files.get({
@@ -183,17 +245,48 @@ async function uploadViaAppsScript({
   return String(payload.url);
 }
 
+async function createPdfViaAppsScript({
+  webAppUrl,
+  folderId,
+  fileName,
+  html
+}: {
+  webAppUrl: string;
+  folderId: string;
+  fileName: string;
+  html: string;
+}) {
+  const response = await fetch(webAppUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      token: process.env.GOOGLE_DRIVE_UPLOAD_TOKEN || "",
+      action: "createPdf",
+      folderId,
+      fileName,
+      html
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.url) {
+    throw new Error(payload.error || "สร้าง PDF ผ่าน Google Apps Script ไม่สำเร็จ");
+  }
+  return String(payload.url);
+}
+
 async function createDriveFile(
   drive: ReturnType<typeof getDriveClient>,
   {
     fileName,
     folderId,
     mimeType,
+    mediaMimeType,
     buffer
   }: {
     fileName: string;
     folderId: string;
     mimeType: string;
+    mediaMimeType?: string;
     buffer: Buffer;
   }
 ) {
@@ -206,7 +299,7 @@ async function createDriveFile(
         parents: [folderId]
       },
       media: {
-        mimeType,
+        mimeType: mediaMimeType || mimeType,
         body: Readable.from(buffer)
       },
       fields: "id,name,webViewLink,webContentLink"
@@ -267,6 +360,17 @@ function buildTableFileName(originalName: string, context: UploadTableImageConte
     timestamp()
   ].filter(Boolean);
   return `${safeFileName(parts.join("_"))}${extension}`;
+}
+
+function buildBillPdfFileName(context: UploadBillPdfContext) {
+  const parts = [
+    context.sequence ? `bill-${context.sequence}` : "bill",
+    context.projectId ? `project-${context.projectId}` : "",
+    context.billDate || "",
+    "tax-form",
+    timestamp()
+  ].filter(Boolean);
+  return `${safeFileName(parts.join("_"))}.pdf`;
 }
 
 function getExtension(name: string) {

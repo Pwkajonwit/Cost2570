@@ -3,9 +3,10 @@ import { BillFollowDashboard, MainDashboard, WithdrawDashboard, WorkStatusDashbo
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
 import { ManageTableClient } from "@/components/ManageTableClient";
-import { TABLE_KEYS } from "@/lib/config";
+import { TABLE_KEYS, TABLES } from "@/lib/config";
 import { getFormPayload } from "@/lib/form";
 import { hydrateContractRows } from "@/lib/formulas";
+import { toNumber } from "@/lib/numbers";
 import { getHeaders, getRows } from "@/lib/sheets";
 import { getViewById, getViewColumns } from "@/lib/views";
 
@@ -65,14 +66,19 @@ async function renderView(
     const page = parsePositiveInt(firstSearchParam(query?.page), 1);
     const pageSize = parsePositiveInt(firstSearchParam(query?.pageSize), 80);
     const sort = parseSort(firstSearchParam(query?.sort));
-    const [rawRows, headers, form] = await Promise.all([
+    const [rawRows, headers, form, projectDataRows, companyRows] = await Promise.all([
       safeRows(view.table),
       getHeaders(view.table).catch(() => []),
-      usesSchemaForm(view.id) ? getFormPayload(view.table).catch(() => null) : Promise.resolve(null)
+      usesSchemaForm(view.id) ? getFormPayload(view.table).catch(() => null) : Promise.resolve(null),
+      view.id === "project-all" ? safeRows(TABLES.DATA) : Promise.resolve([]),
+      view.id === "project-all" ? safeRows(TABLES.COMPANY) : Promise.resolve([])
     ]);
-    const rows = view.id === "contract-open"
-      ? filterRows(await hydrateContractRows(rawRows), search)
-      : filterRows(rawRows, search);
+    const hydratedRows = view.id === "contract-open"
+      ? await hydrateContractRows(rawRows)
+      : view.id === "project-all"
+        ? hydrateProjectRowsForList(rawRows, projectDataRows)
+        : rawRows;
+    const rows = filterRows(hydratedRows, search);
     const displayRows = view.id === "contract-open" ? sortContractRows(rows, sort) : rows;
     const fallback = rows[0] ? Object.keys(rows[0]).filter(column => !column.startsWith("_")) : [];
     const columns = getViewColumns(view.name, fallback);
@@ -94,6 +100,7 @@ async function renderView(
             detailBasePath={view.id === "project-all" ? "/views/project-all" : undefined}
             addOpenEventName={schemaAddEventName}
             editOpenEventName={schemaEditEventName}
+            displayLookups={view.id === "project-all" ? { "บริษัท": companyLookup(companyRows) } : undefined}
           />
           {form ? (
             <>
@@ -245,5 +252,50 @@ function getManageFormColumns(columns: string[], headers: string[], keyColumn: s
 
 function usesSchemaForm(viewId: string) {
   return viewId === "contract-open" || viewId === "project-all" || viewId === "banks";
+}
+
+const PROJECT_TOTAL_COLUMNS = [
+  "ยอดเงิน",
+  "ค่าของ",
+  "ค่าแรง",
+  "พนักงาน",
+  "น้ำมัน",
+  "ซ่อมรถ",
+  "เครื่องจักร",
+  "เครื่องมือ",
+  "อื่นๆ"
+];
+
+function hydrateProjectRowsForList(projectRows: Awaited<ReturnType<typeof getRows>>, dataRows: Awaited<ReturnType<typeof getRows>>) {
+  const totals = dataRows.reduce<Record<string, number>>((accumulator, row) => {
+    const projectId = String(row["ID Project"] || "").trim();
+    if (!projectId) return accumulator;
+    const amount = toNumber(row["ยอดเงิน"]) || PROJECT_TOTAL_COLUMNS.slice(1).reduce((sum, column) => sum + toNumber(row[column]), 0);
+    accumulator[projectId] = (accumulator[projectId] || 0) + amount;
+    return accumulator;
+  }, {});
+
+  return projectRows.map(row => {
+    const projectId = String(row["ID Project"] || "").trim();
+    const output = { ...row };
+    if (!hasRowValue(output["รวม ALL"])) output["รวม ALL"] = totals[projectId] ?? 0;
+    if (!hasRowValue(output["ยอดรวม vat"]) && hasRowValue(output["ยอดงาน"])) {
+      output["ยอดรวม vat"] = toNumber(output["ยอดงาน"]) * 1.07;
+    }
+    return output;
+  });
+}
+
+function hasRowValue(value: unknown) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function companyLookup(companyRows: Awaited<ReturnType<typeof getRows>>) {
+  return companyRows.reduce<Record<string, string>>((lookup, row) => {
+    const key = String(row.id_Company || row["id_Company"] || "").trim();
+    const name = String(row["ชื่อบริษัท"] || row["บริษัท"] || "").trim();
+    if (key && name) lookup[key] = name;
+    return lookup;
+  }, {});
 }
 

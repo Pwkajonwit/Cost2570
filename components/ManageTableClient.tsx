@@ -21,6 +21,7 @@ type ManageTableClientProps = {
   detailBasePath?: string;
   addOpenEventName?: string;
   editOpenEventName?: string;
+  displayLookups?: Record<string, Record<string, string>>;
 };
 
 export function ManageTableClient({
@@ -34,7 +35,8 @@ export function ManageTableClient({
   rowLabel = "รายการ",
   detailBasePath,
   addOpenEventName,
-  editOpenEventName
+  editOpenEventName,
+  displayLookups = {}
 }: ManageTableClientProps) {
   const visibleColumns = useMemo(() => columns.filter(column => column !== "_sheetRow"), [columns]);
   const addColumns = useMemo(() => formColumns.filter(column => column !== "_sheetRow"), [formColumns]);
@@ -337,7 +339,7 @@ export function ManageTableClient({
                                 onChange={event => updateDraft(id, column, event.target.value)}
                               />
                             ) : (
-                              isImageColumn(column) ? <BillImageThumbnail value={row[column]} /> : formatValue(row[column])
+                              renderDisplayCell(column, row[column], displayLookups)
                             )}
                           </td>
                         );
@@ -543,10 +545,42 @@ function stringify(value: RowValue | undefined) {
   return String(value);
 }
 
-function formatValue(value: RowValue | undefined) {
+function formatValue(value: RowValue | undefined, column = "") {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") return value.toLocaleString("th-TH", { maximumFractionDigits: 2 });
+  if (isAmountColumn(column)) {
+    const parsed = Number(String(value).replace(/,/g, ""));
+    if (Number.isFinite(parsed) && String(value).trim() !== "") {
+      return parsed.toLocaleString("th-TH", { maximumFractionDigits: 2 });
+    }
+  }
   return String(value);
+}
+
+function renderDisplayCell(column: string, value: RowValue | undefined, displayLookups: Record<string, Record<string, string>>) {
+  if (isImageColumn(column)) return <BillImageThumbnail value={value} />;
+  if (column === "color") return <ColorDot value={value} />;
+  const rawValue = stringify(value);
+  const lookup = displayLookups[column];
+  if (lookup && rawValue) return lookup[rawValue] || rawValue;
+  return formatValue(value, column);
+}
+
+function ColorDot({ value }: { value: RowValue | undefined }) {
+  const label = stringify(value).trim();
+  const tone = label.toLowerCase();
+  const className = tone === "green"
+    ? "color-dot color-dot-green"
+    : tone === "red"
+      ? "color-dot color-dot-red"
+      : tone === "black"
+        ? "color-dot color-dot-black"
+        : "color-dot color-dot-empty";
+  return (
+    <span className="color-dot-wrap" title={label || "-"}>
+      <span className={className} aria-label={label || "-"} />
+    </span>
+  );
 }
 
 function isImageColumn(column: string) {

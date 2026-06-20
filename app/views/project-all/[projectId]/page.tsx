@@ -186,6 +186,8 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                 <BeforeVatSummaryPanel rows={appSheetSummaries.beforeVatRows} />
               </div>
             </section>
+
+            <ProjectVisualSummary beforeVatRows={appSheetSummaries.beforeVatRows} expenseRows={expenseBreakdown} />
           </div>
         </article>
 
@@ -490,7 +492,7 @@ function ContractorTablePanel({
   );
 }
 
-function BeforeVatSummaryPanel({ rows }: { rows: Array<{ label: string; value: string }> }) {
+function BeforeVatSummaryPanel({ rows }: { rows: Array<{ label: string; value: string; tone?: string }> }) {
   return (
     <section className="summary-card before-vat-summary-card">
       <header className="summary-card-head">
@@ -501,11 +503,73 @@ function BeforeVatSummaryPanel({ rows }: { rows: Array<{ label: string; value: s
       </header>
       <div className="before-vat-summary-grid">
         {rows.map((row, index) => (
-          <div key={`${row.label}-${index}`}>
+          <div className={row.tone ? `before-vat-item before-vat-${row.tone}` : "before-vat-item"} key={`${row.label}-${index}`}>
             <span>{row.label}</span>
             <strong>{row.value}</strong>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function ProjectVisualSummary({
+  beforeVatRows,
+  expenseRows
+}: {
+  beforeVatRows: Array<{ label: string; value: string; tone?: string }>;
+  expenseRows: Array<{ label: string; amount: number; percent: number }>;
+}) {
+  const beforeVatValues = beforeVatRows.map(row => ({ ...row, amount: parseCompactMoney(row.value) }));
+  const beforeVatMax = Math.max(...beforeVatValues.map(row => row.amount), 1);
+  const mainExpenses = expenseRows
+    .filter(row => row.amount > 0)
+    .sort((left, right) => right.amount - left.amount)
+    .slice(0, 6);
+  const expenseTotal = mainExpenses.reduce((sum, row) => sum + row.amount, 0) || 1;
+
+  return (
+    <section className="project-detail-section project-visual-section">
+      <h3>ภาพรวมข้อมูล</h3>
+      <div className="project-visual-grid">
+        <article className="visual-card">
+          <header>
+            <h4>ยอดรวมก่อน VAT</h4>
+            <span>ค่าแรง / ค่าของ / ค่าน้ำมัน</span>
+          </header>
+          <div className="visual-bar-list">
+            {beforeVatValues.map(row => (
+              <div className="visual-bar-row" key={row.label}>
+                <div className="visual-bar-label">
+                  <span>{row.label}</span>
+                  <strong>{row.value}</strong>
+                </div>
+                <div className="visual-track">
+                  <span className={`visual-fill visual-fill-${row.tone || "default"}`} style={{ width: `${Math.max(4, row.amount / beforeVatMax * 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="visual-card">
+          <header>
+            <h4>สัดส่วนค่าใช้จ่าย</h4>
+            <span>หมวดที่มียอดสูงสุด</span>
+          </header>
+          <div className="expense-ratio-list">
+            {mainExpenses.map((row, index) => (
+              <div className="expense-ratio-row" key={row.label}>
+                <span className={`ratio-dot ratio-dot-${index % 6}`} />
+                <span>{row.label}</span>
+                <div className="ratio-track">
+                  <b style={{ width: `${Math.max(4, row.amount / expenseTotal * 100)}%` }} />
+                </div>
+                <strong>{formatCompactMoney(row.amount)}</strong>
+              </div>
+            ))}
+          </div>
+        </article>
       </div>
     </section>
   );
@@ -549,8 +613,8 @@ function buildBudgetBreakdown(project: SheetRow, rows: SheetRow[]) {
   }));
   return {
     items,
-    firstGroup: items.slice(0, 10),
-    secondGroup: items.slice(10),
+    firstGroup: items.slice(0, 11),
+    secondGroup: items.slice(11),
     actualTotal: items.reduce((sum, item) => sum + item.actual, 0),
     limitTotal: items.reduce((sum, item) => sum + item.limit, 0)
   };
@@ -631,7 +695,10 @@ function buildAppSheetProjectSummaries(rows: SheetRow[], totals: ReturnType<type
   const creditRows = rows.filter(row => String(row["เครดิต"] || "").trim());
   const topRequesters = topGroups(rows, row => String(row["ผู้เบิก"] || "-"), 4);
   const latestRows = [...rows].sort((left, right) => rowDateValue(right) - rowDateValue(left)).slice(0, 4);
-  const beforeVat = totals.totalVat ? totals.totalVat / 1.07 : totals.workTotal;
+  const laborBeforeVat = roundMoney(sumBeforeVatRows(rows, "ค่าแรง", { includeCompanyLaborVat: true }));
+  const materialBeforeVat = roundMoney(sumBeforeVatRows(rows, "ค่าของ"));
+  const fuelBeforeVat = Math.floor(sumBeforeVatRows(rows, "น้ำมัน"));
+  const beforeVatTotal = laborBeforeVat + materialBeforeVat + fuelBeforeVat;
 
   return {
     billRows: [
@@ -653,13 +720,26 @@ function buildAppSheetProjectSummaries(rows: SheetRow[], totals: ReturnType<type
       value: formatCompactMoney(toNumber(row["ยอดเงิน"]))
     })),
     beforeVatRows: [
-      { label: "ยอดงานก่อน VAT", value: formatCompactMoney(totals.workTotal || beforeVat) },
-      { label: "VAT 7%", value: formatCompactMoney(totals.totalVat - beforeVat) },
-      { label: "ยอดรวม VAT", value: formatCompactMoney(totals.totalVat) },
-      { label: "งบไม่เกิน", value: formatCompactMoney(totals.budget) },
-      { label: "รวมจ่ายจริง", value: formatCompactMoney(totals.totalAll) }
+      { label: "ค่าแรง", value: formatCompactMoney(laborBeforeVat), tone: "labor" },
+      { label: "ค่าของ", value: formatCompactMoney(materialBeforeVat), tone: "material" },
+      { label: "ค่าน้ำมัน", value: formatCompactMoney(fuelBeforeVat), tone: "fuel" },
+      { label: "รวม", value: formatCompactMoney(beforeVatTotal), tone: "total" }
     ]
   };
+}
+
+function sumBeforeVatRows(rows: SheetRow[], column: string, options: { includeCompanyLaborVat?: boolean } = {}) {
+  return rows.reduce((sum, row) => {
+    const amount = toNumber(row[column]);
+    if (!amount) return sum;
+    const hasVat = String(row.vat || "").trim() !== "";
+    const isCompanyLabor = options.includeCompanyLaborVat && String(row["statusค่าแรง"] || "").trim() === "บริษัท";
+    return sum + (hasVat || isCompanyLabor ? amount / 1.07 : amount);
+  }, 0);
+}
+
+function roundMoney(value: number) {
+  return Math.round(toNumber(value) * 100) / 100;
 }
 
 function topGroups(rows: SheetRow[], getLabel: (row: SheetRow) => string, limit: number) {
@@ -708,4 +788,8 @@ function formatCompactMoney(value: number) {
   return toNumber(value).toLocaleString("th-TH", {
     maximumFractionDigits: 2
   });
+}
+
+function parseCompactMoney(value: string) {
+  return toNumber(String(value || "").replace(/,/g, ""));
 }
