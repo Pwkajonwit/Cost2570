@@ -134,7 +134,7 @@ export function MainDashboardClient({ initialDataRows, initialProjectRows }: Mai
       <SummaryTable
         title="main 3"
         subtitle="main3"
-        header={["รายการก่อน vat (บาท)", "คำนวณ vat (บาท)", "ยอดดำเนินการ"]}
+        header={["รายการ", "ก่อน vat (บาท)", "คำนวณ vat (บาท)", "ยอดดำเนินการ"]}
         rows={[
           ["ค่าแรง", summary.main3.laborBeforeVat, summary.main3.laborVat, 0],
           ["ค่าของ", summary.main3.materialBeforeVat, summary.main3.materialVat, summary.main4.operatingMaterial],

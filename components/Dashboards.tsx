@@ -194,7 +194,9 @@ export async function WithdrawDashboard({ filters = {} }: { filters?: WithdrawFi
 }
 
 export async function BillFollowDashboard() {
-  const rows = hydrateDataRows(await safeRows(TABLES.DATA));
+  const [dataRows, peopleRows] = await Promise.all([safeRows(TABLES.DATA), safeRows(TABLES.PEOPLE)]);
+  const rows = hydrateDataRows(dataRows);
+  const requesterNames = requesterNameMap(peopleRows);
   const vatRows = rows.filter(row => toNumber(row.vat) > 0 && !firstValue(row, ["วันได้บิล", "à¸§à¸±à¸™à¹„à¸”à¹‰à¸šà¸´à¸¥"]));
   const naturalDeductRows = rows.filter(row =>
     toNumber(firstValue(row, ["หัก", "à¸«à¸±à¸"])) > 0 &&
@@ -210,10 +212,10 @@ export async function BillFollowDashboard() {
 
   return (
     <section className="content dashboard dashboard-bill-follow">
-      <FollowPanel title="ตาม vat" count={vatRows.length} rows={vatRows} />
-      <FollowPanel title="หัก 3" count={naturalDeductRows.length} rows={naturalDeductRows} />
-      <FollowPanel title="หัก 3 บริษัท" count={companyDeductRows.length} rows={companyDeductRows} />
-      <FollowPanel title="เครดิต" count={creditRows.length} rows={creditRows} />
+      <FollowPanel title="ตาม vat" count={vatRows.length} requesterNames={requesterNames} rows={vatRows} />
+      <FollowPanel title="หัก 3" count={naturalDeductRows.length} requesterNames={requesterNames} rows={naturalDeductRows} />
+      <FollowPanel title="หัก 3 บริษัท" count={companyDeductRows.length} requesterNames={requesterNames} rows={companyDeductRows} />
+      <FollowPanel title="เครดิต" count={creditRows.length} requesterNames={requesterNames} rows={creditRows} />
     </section>
   );
 }
@@ -248,7 +250,7 @@ function AmountPanel({ title, value, className = "" }: { title: string; value: n
   );
 }
 
-function FollowPanel({ title, count, rows }: { title: string; count: number; rows: SheetRow[] }) {
+function FollowPanel({ title, count, requesterNames, rows }: { title: string; count: number; requesterNames: Record<string, string>; rows: SheetRow[] }) {
   const visibleRows = rows.slice(0, 80);
   const amountTotal = rows.reduce((sum, row) => sum + toNumber(followValue(row, ["ยอดเงิน", "à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™"])), 0);
   const rowCountText = rows.length > visibleRows.length ? `${visibleRows.length} / ${rows.length}` : String(visibleRows.length);
@@ -287,7 +289,7 @@ function FollowPanel({ title, count, rows }: { title: string; count: number; row
                   <td data-label="Project">{formatCell(followValue(row, ["ชื่อ Project", "à¸Šà¸·à¹ˆà¸­ Project"])) || "-"}</td>
                   <td data-label="รายการ">{formatCell(followValue(row, ["สินค้า/ทำงาน", "à¸ªà¸´à¸™à¸„à¹‰à¸²/à¸—à¸³à¸‡à¸²à¸™"])) || formatCell(followValue(row, ["รายการ", "à¸£à¸²à¸¢à¸à¸²à¸£"])) || "-"}</td>
                   <td data-label="วันที่">{formatCell(followValue(row, ["ว/ด/ป", "à¸§/à¸”/à¸›"])) || "-"}</td>
-                  <td data-label="ผู้เบิก">{formatCell(followValue(row, ["ผู้เบิก", "à¸œà¸¹à¹‰à¹€à¸šà¸´à¸"])) || "-"}</td>
+                  <td data-label="ผู้เบิก">{requesterName(followValue(row, ["ผู้เบิก", "à¸œà¸¹à¹‰à¹€à¸šà¸´à¸"]), requesterNames) || "-"}</td>
                   <td className="numeric-cell bill-follow-money" data-label="ยอดเงิน">{money(followValue(row, ["ยอดเงิน", "à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™"]))}</td>
                   <td data-label="เงื่อนไข">
                     <div className="bill-follow-flags">
@@ -306,6 +308,20 @@ function FollowPanel({ title, count, rows }: { title: string; count: number; row
       )}
     </div>
   );
+}
+
+function requesterNameMap(peopleRows: SheetRow[]) {
+  return peopleRows.reduce<Record<string, string>>((names, row) => {
+    const key = String(row["รหัสพนักงาน"] || "").trim();
+    const name = String(row["ชื่อเล่น"] || "").trim();
+    if (key && name) names[key] = name;
+    return names;
+  }, {});
+}
+
+function requesterName(value: unknown, requesterNames: Record<string, string>) {
+  const key = String(value || "").trim();
+  return requesterNames[key] || key;
 }
 
 function followValue(row: SheetRow, columns: string[]) {
@@ -332,13 +348,8 @@ function ProjectStatusPanel({
     <div className="dash-card dash-panel dash-projectStatus">
       <header>
         <h3>{title}</h3>
-        <small>Project</small>
+        <strong className="project-status-count">{count} รายการ</strong>
       </header>
-      <div className={`project-count-card project-count-${tone}`}>
-        <span>{title}</span>
-        <strong>{count}</strong>
-        <small>รายการ</small>
-      </div>
       <div className="project-card-grid">
         {rows.slice(0, 60).map((row, index) => (
           <ProjectItemCard key={String(row["ID Project"] || row._sheetRow || index)} title={title} row={row} tone={tone} />

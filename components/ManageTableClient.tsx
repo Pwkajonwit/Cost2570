@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Eye, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Eye, List, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { BillImageThumbnail } from "@/components/BillImageThumbnail";
 import type { RowValue, SheetRow } from "@/lib/types";
 
 type BusyState = "add" | "edit" | "delete" | null;
+const PAGE_SIZE_OPTIONS = [50, 100];
 
 type ManageTableClientProps = {
   tableName: string;
@@ -46,10 +47,26 @@ export function ManageTableClient({
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [busy, setBusy] = useState<BusyState>(null);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const visibleRows = rows.slice(startIndex, startIndex + pageSize);
+  const visibleStart = visibleRows.length ? startIndex + 1 : 0;
+  const visibleEnd = startIndex + visibleRows.length;
 
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   useEffect(() => {
     setAddValues(emptyValues(addColumns));
@@ -212,7 +229,6 @@ export function ManageTableClient({
             <span>{search ? `Search: ${search}` : tableName}</span>
           </div>
           <div className="manage-actions">
-            <strong>{rows.length} {rowLabel}</strong>
             <button type="button" className="primary" disabled={Boolean(busy)} onClick={openAddForm}>
               <Plus size={15} />
               <span>เพิ่ม</span>
@@ -265,8 +281,9 @@ export function ManageTableClient({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => {
-                  const id = rowId(row, index, keyColumn);
+                {visibleRows.map((row, index) => {
+                  const rowIndex = startIndex + index;
+                  const id = rowId(row, rowIndex, keyColumn);
                   const sheetRow = Number(row._sheetRow);
                   return (
                     <tr key={id}>
@@ -334,6 +351,19 @@ export function ManageTableClient({
         ) : (
           <div className="empty-state">ไม่พบข้อมูล</div>
         )}
+        {rows.length ? (
+          <ManagePagination
+            currentPage={currentPage}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            pageSize={pageSize}
+            rowLabel={rowLabel}
+            totalPages={totalPages}
+            totalRows={rows.length}
+            visibleEnd={visibleEnd}
+            visibleStart={visibleStart}
+          />
+        ) : null}
       </div>
 
       {addOpen ? (
@@ -380,6 +410,103 @@ export function ManageTableClient({
 
 function emptyValues(columns: string[]) {
   return Object.fromEntries(columns.map(column => [column, ""]));
+}
+
+function ManagePagination({
+  currentPage,
+  onPageChange,
+  onPageSizeChange,
+  pageSize,
+  rowLabel,
+  totalPages,
+  totalRows,
+  visibleEnd,
+  visibleStart
+}: {
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  pageSize: number;
+  rowLabel: string;
+  totalPages: number;
+  totalRows: number;
+  visibleEnd: number;
+  visibleStart: number;
+}) {
+  const pages = pageWindow(currentPage, totalPages);
+  return (
+    <div className="table-pagination manage-pagination" aria-label="pagination">
+      <div className="pagination-summary">
+        <span className="pagination-summary-full">แสดง {visibleStart}-{visibleEnd} จาก {totalRows} {rowLabel}</span>
+        <span className="pagination-summary-compact" aria-label={`แสดง ${visibleStart}-${visibleEnd} จาก ${totalRows} ${rowLabel}`}>
+          {visibleStart}-{visibleEnd}/{totalRows}
+        </span>
+        <div className="page-size-switch" aria-label="rows per page">
+          <span className="page-size-label">
+            <List size={15} aria-hidden="true" />
+            <span>ต่อหน้า</span>
+          </span>
+          {PAGE_SIZE_OPTIONS.map(option => (
+            <button
+              key={option}
+              type="button"
+              className={option === pageSize ? "active" : ""}
+              aria-current={option === pageSize ? "true" : undefined}
+              onClick={() => onPageSizeChange(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+      <nav className="pagination-controls" aria-label="table pages">
+        <PageButton className="pagination-prev" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          <ChevronLeft className="pagination-link-icon" size={15} aria-hidden="true" />
+          <span className="pagination-link-text">ก่อนหน้า</span>
+        </PageButton>
+        {pages.map((page, index) => (
+          page === "ellipsis" ? (
+            <span className="page-ellipsis" key={`ellipsis-${index}`}>...</span>
+          ) : (
+            <button
+              key={page}
+              type="button"
+              className={page === currentPage ? "active" : ""}
+              aria-current={page === currentPage ? "page" : undefined}
+              onClick={() => onPageChange(page)}
+            >
+              {page}
+            </button>
+          )
+        ))}
+        <PageButton className="pagination-next" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          <span className="pagination-link-text">ถัดไป</span>
+          <ChevronRight className="pagination-link-icon" size={15} aria-hidden="true" />
+        </PageButton>
+      </nav>
+    </div>
+  );
+}
+
+function PageButton({ children, className, disabled, onClick }: { children: ReactNode; className?: string; disabled: boolean; onClick: () => void }) {
+  const buttonClassName = className ? `page-nav-link ${className}` : "page-nav-link";
+  return (
+    <button type="button" className={buttonClassName} disabled={disabled} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+function pageWindow(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  const pages: Array<number | "ellipsis"> = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  if (start > 2) pages.push("ellipsis");
+  for (let page = start; page <= end; page += 1) pages.push(page);
+  if (end < totalPages - 1) pages.push("ellipsis");
+  pages.push(totalPages);
+  return pages;
 }
 
 function rowId(row: SheetRow, index: number, keyColumn: string) {

@@ -20,10 +20,12 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
   const sort = parseSort(firstSearchParam(query?.sort));
   const viewName = "กรอกบิล";
   const columns = VIEW_COLUMNS[viewName];
-  const [allRows, form] = await Promise.all([
+  const [allRows, peopleRows, form] = await Promise.all([
     safeRows(TABLES.DATA),
+    safeRows(TABLES.PEOPLE),
     getFormPayload(TABLES.DATA).catch(() => null)
   ]);
+  const requesterNames = requesterNameMap(peopleRows);
   const hydratedRows = await hydrateBillRows(allRows);
   const rows = filterRows(sortBillRows(nonEmptyRows(hydratedRows, columns), sort), search);
 
@@ -65,10 +67,25 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
             label: sort === "latest" ? "ล่าสุดก่อน" : "เก่าสุดก่อน",
             direction: sort
           }}
+          cellFormatters={{
+            "ผู้เบิก": value => {
+              const key = String(value || "").trim();
+              return requesterNames[key] || key;
+            }
+          }}
         />
       </section>
     </>
   );
+}
+
+function requesterNameMap(peopleRows: SheetRow[]) {
+  return peopleRows.reduce<Record<string, string>>((names, row) => {
+    const key = String(row["รหัสพนักงาน"] || "").trim();
+    const name = String(row["ชื่อเล่น"] || "").trim();
+    if (key && name) names[key] = name;
+    return names;
+  }, {});
 }
 
 async function safeRows(tableName: string): Promise<SheetRow[]> {

@@ -39,6 +39,7 @@ export function WithdrawDashboardClient({ rows, peopleRows, initialFilters = {} 
   const visibleEnd = pageStart + visibleRows.length;
   const amount = displayRows.reduce((sum, row) => sum + toNumber(row["ยอดเงิน"]), 0);
   const transfer = displayRows.reduce((sum, row) => sum + toNumber(row["ยอดโอน"]), 0);
+  const requesterNames = useMemo(() => requesterNameMap(peopleRows), [peopleRows]);
 
   useEffect(() => {
     setPage(1);
@@ -107,7 +108,7 @@ export function WithdrawDashboardClient({ rows, peopleRows, initialFilters = {} 
           </div>
           <strong className="table-count-pill">{visibleStart}-{visibleEnd} / {displayRows.length} รายการ</strong>
         </header>
-        <WithdrawTable columns={columns} rows={visibleRows} />
+        <WithdrawTable columns={columns} requesterNames={requesterNames} rows={visibleRows} />
         <WithdrawPagination
           currentPage={currentPage}
           onPageChange={setPage}
@@ -150,20 +151,20 @@ function filterWithdrawRows(rows: SheetRow[], filters: Required<WithdrawFilters>
   });
 }
 
-function WithdrawTable({ columns, rows }: { columns: string[]; rows: SheetRow[] }) {
+function WithdrawTable({ columns, requesterNames, rows }: { columns: string[]; requesterNames: Record<string, string>; rows: SheetRow[] }) {
   if (!rows.length) return <div className="empty-state compact-empty">ไม่พบข้อมูล</div>;
   return (
     <div className="dash-table-wrap">
       <table className="dash-table">
         <thead>
-          <tr>{columns.map(column => <th key={column}>{column}</th>)}</tr>
+          <tr>{columns.map(column => <th key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined}>{column}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
             <tr key={String(row._sheetRow || row[columns[0]] || index)}>
               {columns.map(column => (
                 <td key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-label={column}>
-                  {formatCell(row[column])}
+                  {formatWithdrawCell(column, row[column], requesterNames)}
                 </td>
               ))}
             </tr>
@@ -172,6 +173,15 @@ function WithdrawTable({ columns, rows }: { columns: string[]; rows: SheetRow[] 
       </table>
     </div>
   );
+}
+
+function requesterNameMap(peopleRows: SheetRow[]) {
+  return peopleRows.reduce<Record<string, string>>((names, row) => {
+    const key = String(row["รหัสพนักงาน"] || "").trim();
+    const name = String(row["ชื่อเล่น"] || "").trim();
+    if (key && name) names[key] = name;
+    return names;
+  }, {});
 }
 
 function WithdrawPagination({
@@ -299,6 +309,12 @@ function formatCell(value: unknown) {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") return money(value);
   return String(value);
+}
+
+function formatWithdrawCell(column: string, value: unknown, requesterNames: Record<string, string>) {
+  if (column !== "ผู้เบิก") return formatCell(value);
+  const key = String(value || "").trim();
+  return requesterNames[key] || key;
 }
 
 function isAmountColumn(column: string) {

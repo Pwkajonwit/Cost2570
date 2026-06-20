@@ -26,12 +26,14 @@ export default async function ViewPage({ params, searchParams }: ViewPageProps) 
 
   return (
     <>
-      <header className={getToolbarClassName(view.id)}>
-        <div>
-          <h2>{displayName}</h2>
-          {search || (view.type !== "dashboard" && view.id !== "contract-open") ? <p>{search ? `ค้นหา: ${search}` : view.table || ""}</p> : null}
-        </div>
-      </header>
+      {view.position !== "menu" ? (
+        <header className={getToolbarClassName(view.id)}>
+          <div>
+            <h2>{displayName}</h2>
+            {search || (view.type !== "dashboard" && view.id !== "contract-open") ? <p>{search ? `ค้นหา: ${search}` : view.table || ""}</p> : null}
+          </div>
+        </header>
+      ) : null}
       {await renderView(view, search, query, displayName)}
     </>
   );

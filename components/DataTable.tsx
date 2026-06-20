@@ -25,11 +25,12 @@ type DataTableProps = {
   };
   detailBasePath?: string;
   detailKeyColumn?: string;
+  cellFormatters?: Record<string, (value: unknown, row: SheetRow) => ReactNode>;
 };
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [50, 80, 100, 200];
 
-export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle, rowLabel = "rows", pagination, sortToggle, detailBasePath, detailKeyColumn }: DataTableProps) {
+export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle, rowLabel = "rows", pagination, sortToggle, detailBasePath, detailKeyColumn, cellFormatters }: DataTableProps) {
   const totalRows = rows.length;
   const pageSize = pagination ? clampPageSize(pagination.pageSize, pagination.pageSizeOptions) : limit;
   const totalPages = pagination ? Math.max(1, Math.ceil(totalRows / pageSize)) : 1;
@@ -82,7 +83,7 @@ export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle,
                   ) : null}
                   {columns.map(column => (
                     <td key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-label={column}>
-                      {renderCell(column, row[column])}
+                      {renderCell(column, row[column], row, cellFormatters)}
                     </td>
                   ))}
                 </tr>
@@ -232,7 +233,9 @@ function formatValue(value: unknown) {
   return String(value);
 }
 
-function renderCell(column: string, value: unknown) {
+function renderCell(column: string, value: unknown, row: SheetRow, cellFormatters?: DataTableProps["cellFormatters"]) {
+  const formatter = cellFormatters?.[column];
+  if (formatter) return formatter(value, row);
   if (isImageColumn(column)) return <BillImageThumbnail value={value} />;
   return formatValue(value);
 }
