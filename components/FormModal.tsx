@@ -63,6 +63,7 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
       const next = { ...current, [field.name]: value };
       applyRefFill(next, field, form, value);
       normalizeDependentValues(next, field.name, form);
+      if (form.tableName === TABLES.DATA && field.name === "จำนวนหัก") return next;
       applyLocalFormulas(next, form.tableName);
       return next;
     });
@@ -111,7 +112,11 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
       setOpen(false);
       setEditSheetRow(null);
       setValues(getInitialStringValues(form));
-      router.refresh();
+      if (form.tableName === TABLES.DATA) {
+        window.location.reload();
+      } else {
+        router.refresh();
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "บันทึกไม่สำเร็จ");
     } finally {
@@ -151,7 +156,7 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
                 <div className="form-grid">
                   {visibleFields.map(field => (
                     <div className={getFieldClassName(field)} key={field.name}>
-                      <label>{field.name}{field.required ? " *" : ""}</label>
+                      <label>{getFieldLabel(field)}{field.required ? " *" : ""}</label>
                       {renderField(
                         field,
                         form,
@@ -385,17 +390,16 @@ function renderField(
     );
   }
 
-  const billDateTextMode = form.tableName === TABLES.DATA && field.type === "Date";
-  const type = billDateTextMode ? "text" : field.type === "Date" ? "date" : field.type === "Decimal" || field.type === "Number" ? "number" : "text";
+  const billDateMode = form.tableName === TABLES.DATA && field.type === "Date";
+  const type = field.type === "Date" ? "date" : field.type === "Decimal" || field.type === "Number" ? "number" : "text";
   return (
     <input
       type={type}
       name={field.name}
-      value={billDateTextMode ? formatBillDateInput(value) : value}
+      value={billDateMode ? toDateInputValue(value) : value}
       readOnly={readOnly}
-      placeholder={billDateTextMode ? "8/4/2026" : undefined}
-      inputMode={billDateTextMode ? "numeric" : undefined}
-      onChange={event => onChange(billDateTextMode ? normalizeBillDateInput(event.target.value) : event.target.value)}
+      lang={billDateMode ? "th-TH" : undefined}
+      onChange={event => onChange(billDateMode ? normalizeBillDateInput(event.target.value) : event.target.value)}
     />
   );
 }
@@ -577,6 +581,10 @@ function applyLocalFormulas(values: Record<string, string>, tableName: string) {
     if (hasValue(values["ยอดงาน"])) values["ยอดรวม vat"] = String(toNumber(values["ยอดงาน"]) * 1.07);
     return;
   }
+  if (tableName === TABLES.DATA) {
+    applyBillDeductAmount(values);
+    return;
+  }
   if (tableName !== TABLES.CONTRACT_WORK) return;
   const hireAmount = toNumber(values["ยอดเงินจ้าง"]);
   const paidAmount = toNumber(values["ยอดเงินจ่าย"]);
@@ -584,6 +592,19 @@ function applyLocalFormulas(values: Record<string, string>, tableName: string) {
     values["ยอดเงินจ่าย"] = String(paidAmount);
     values["ค่าแรงคงเหลือ"] = String(hireAmount - paidAmount);
   }
+}
+
+function applyBillDeductAmount(values: Record<string, string>) {
+  const deductValue = values["หัก"];
+  const deductPercent = toNumber(deductValue);
+  if (!hasValue(deductValue)) {
+    values["จำนวนหัก"] = "";
+    return;
+  }
+
+  const amountFields = ["ค่าแรง", "อื่นๆ", "ค่าของ", "พนักงาน", "น้ำมัน", "ซ่อมรถ", "เครื่องจักร", "เครื่องมือ", "ค่าแรงคงเหลือ"];
+  const baseAmount = amountFields.map(field => toNumber(values[field])).find(amount => amount > 0) || 0;
+  values["จำนวนหัก"] = deductPercent && baseAmount ? formatDecimal(baseAmount * deductPercent / 100) : "";
 }
 
 function applyRefFill(values: Record<string, string>, field: FieldSchema, form: FormPayload, value: string) {
@@ -614,12 +635,20 @@ function getFieldClassName(field: FieldSchema) {
   return classes.join(" ");
 }
 
+function getFieldLabel(field: FieldSchema) {
+  if (field.name === "วันออก 3%") return "วันออก";
+  return field.name;
+}
+
 function hasValue(value: unknown) {
   return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
-function formatBillDateInput(value: string) {
-  return normalizeBillDateInput(value);
+function toDateInputValue(value: string) {
+  const normalized = normalizeBillDateInput(value);
+  const match = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return normalized;
+  return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
 }
 
 function normalizeBillDateInput(value: string) {
@@ -641,4 +670,8 @@ function toNumber(value: unknown) {
   if (typeof value === "number") return value;
   const parsed = Number(String(value).replace(/,/g, ""));
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function formatDecimal(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }

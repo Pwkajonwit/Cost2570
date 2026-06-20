@@ -7,6 +7,12 @@
 /*!*************************************************************************************************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/globals.css ***!
   \*************************************************************************************************************************************************************************************************************************************************************/
+/*!*************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/globals.css ***!
+  \*************************************************************************************************************************************************************************************************************************************************************/
+/*!*************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/globals.css ***!
+  \*************************************************************************************************************************************************************************************************************************************************************/
 :root {
   --bg: #f3f6fa;
   --panel: #ffffff;
@@ -14,12 +20,12 @@
   --line-strong: #cbd5df;
   --text: #17212b;
   --muted: #667485;
-  --primary: #065814;
+  --primary: #00570f;
   --primary-strong: #065814;
   --accent: #f5b841;
   --soft: #f7fafc;
-  --mobile-green: #16853d;
-  --mobile-green-strong: #0f6b30;
+  --mobile-green: #00570f;
+  --mobile-green-strong: #065814;
   --sidebar: var(--mobile-green);
   --mobile-topbar-height: 56px;
   --mobile-bottomnav-height: 60px;
@@ -143,7 +149,7 @@ button:focus-visible {
   min-height: 100dvh;
   align-self: start;
   z-index: 20;
-  background: #076417;
+  background: #00570f;
   color: #ffffff;
   padding: 14px 10px;
   overflow-y: auto;
@@ -259,6 +265,8 @@ button:focus-visible {
   grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
+  grid-gap: 5px;
+  grid-gap: 5px;
   gap: 5px;
   padding-bottom: 18px;
 }
@@ -293,13 +301,13 @@ button:focus-visible {
 
 .nav a:hover,
 .nav a.active {
-  background: rgba(0,0,0,0.12);
-  color: #fff;
+  background: #9ad117;
+  color: #000000;
 }
 
 .nav a:hover .nav-icon,
 .nav a.active .nav-icon {
-  color: #fff;
+  color: #000000;
 }
 
 .nav a.active {
@@ -468,6 +476,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
 }
 
@@ -497,6 +507,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   align-items: end;
   padding: 10px 12px;
@@ -512,6 +524,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   align-items: end;
 }
@@ -519,6 +533,8 @@ button:focus-visible {
 .bills-search-form label {
   min-width: 0;
   display: grid;
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -584,6 +600,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   align-items: end;
   padding: 10px 12px;
@@ -611,6 +629,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   align-items: end;
 }
@@ -618,6 +638,8 @@ button:focus-visible {
 .contract-search-form label {
   min-width: 0;
   display: grid;
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -699,6 +721,8 @@ button:focus-visible {
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
+  grid-gap: 14px;
+  grid-gap: 14px;
   gap: 14px;
 }
 
@@ -709,6 +733,8 @@ button:focus-visible {
 .dashboard-columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 14px;
+  grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
@@ -740,6 +766,8 @@ button:focus-visible {
 
 .dash-panel {
   display: grid;
+  grid-gap: 12px;
+  grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
@@ -831,11 +859,15 @@ button:focus-visible {
   grid-gap: 9px;
   grid-gap: 9px;
   grid-gap: 9px;
+  grid-gap: 9px;
+  grid-gap: 9px;
   gap: 9px;
 }
 
 .dashboard-main-program .filter-form label {
   display: grid;
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -847,6 +879,8 @@ button:focus-visible {
 .dashboard-main-program .filter-presets {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -865,6 +899,8 @@ button:focus-visible {
 .filter-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -912,6 +948,8 @@ button:focus-visible {
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
+  grid-gap: 12px;
+  grid-gap: 12px;
   gap: 12px;
   padding: 14px;
   border: 1px solid #d7e0ea;
@@ -923,6 +961,8 @@ button:focus-visible {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
+  grid-gap: 16px;
+  grid-gap: 16px;
   grid-gap: 16px;
   grid-gap: 16px;
   grid-gap: 16px;
@@ -1008,6 +1048,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   padding: 2px 0 0;
 }
@@ -1036,6 +1078,8 @@ button:focus-visible {
 
 .project-overview-card {
   display: grid;
+  grid-gap: 14px;
+  grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
@@ -1072,6 +1116,8 @@ button:focus-visible {
 .overview-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-gap: 10px;
+  grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
@@ -1185,12 +1231,16 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   align-items: end;
 }
 
 .withdraw-filter-form label {
   display: grid;
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -1305,6 +1355,8 @@ button:focus-visible {
 .withdraw-compact-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -1631,6 +1683,8 @@ button:focus-visible {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
 }
 
@@ -1660,12 +1714,16 @@ button:focus-visible {
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
+  grid-gap: 14px;
+  grid-gap: 14px;
   gap: 14px;
   padding: 14px 14px 8px;
 }
 
 .bill-follow-copy {
   display: grid;
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -1757,6 +1815,8 @@ button:focus-visible {
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
+  grid-gap: 12px;
+  grid-gap: 12px;
   gap: 12px;
   padding: 16px 20px 14px;
 }
@@ -1785,12 +1845,16 @@ button:focus-visible {
   grid-gap: 4px;
   grid-gap: 4px;
   grid-gap: 4px;
+  grid-gap: 4px;
+  grid-gap: 4px;
   gap: 4px;
 }
 
 .project-item-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 14px;
+  grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
@@ -2079,12 +2143,16 @@ button:focus-visible {
   grid-gap: 10px 12px;
   grid-gap: 10px 12px;
   grid-gap: 10px 12px;
+  grid-gap: 10px 12px;
+  grid-gap: 10px 12px;
   gap: 10px 12px;
 }
 
 .manage-form-field {
   min-width: 0;
   display: grid;
+  grid-gap: 5px;
+  grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
@@ -2521,6 +2589,8 @@ table {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   overflow: auto;
   padding: 14px;
@@ -2532,6 +2602,8 @@ table {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
+  grid-gap: 12px;
+  grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
@@ -2750,6 +2822,8 @@ table {
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
+  grid-gap: 14px;
+  grid-gap: 14px;
   gap: 14px;
   padding: 18px;
   border: 1px solid #d6dee8;
@@ -2955,6 +3029,8 @@ tbody tr:hover td {
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
+  grid-gap: 14px;
+  grid-gap: 14px;
   gap: 14px;
 }
 
@@ -3005,6 +3081,8 @@ tbody tr:hover td {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   padding: 14px 16px;
   background: #f8fafc;
@@ -3014,6 +3092,8 @@ tbody tr:hover td {
 .contract-metric {
   min-width: 0;
   display: grid;
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -3051,6 +3131,8 @@ tbody tr:hover td {
 .contract-detail-layout {
   display: grid;
   grid-template-columns: minmax(420px, 536px) minmax(0, 1fr);
+  grid-gap: 14px;
+  grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
@@ -3094,6 +3176,8 @@ tbody tr:hover td {
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
+  grid-gap: 14px;
+  grid-gap: 14px;
   gap: 14px;
   padding: 12px 14px;
   border-bottom: 1px solid #edf2f7;
@@ -3130,6 +3214,8 @@ tbody tr:hover td {
 
 .project-detail-page {
   display: grid;
+  grid-gap: 14px;
+  grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
@@ -3195,6 +3281,8 @@ tbody tr:hover td {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
   padding: 14px 16px;
   background: #f8fafc;
@@ -3204,6 +3292,8 @@ tbody tr:hover td {
 .project-metric {
   min-width: 0;
   display: grid;
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -3242,6 +3332,8 @@ tbody tr:hover td {
 .project-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  grid-gap: 14px;
+  grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
   grid-gap: 14px;
@@ -3303,6 +3395,8 @@ tbody tr:hover td {
   grid-gap: 10px 12px;
   grid-gap: 10px 12px;
   grid-gap: 10px 12px;
+  grid-gap: 10px 12px;
+  grid-gap: 10px 12px;
   gap: 10px 12px;
   padding: 14px;
 }
@@ -3310,6 +3404,8 @@ tbody tr:hover td {
 .project-edit-field {
   min-width: 0;
   display: grid;
+  grid-gap: 5px;
+  grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
@@ -3342,6 +3438,8 @@ tbody tr:hover td {
 .detail-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 0;
+  grid-gap: 0;
   grid-gap: 0;
   grid-gap: 0;
   grid-gap: 0;
@@ -3444,6 +3542,8 @@ tbody tr:hover td {
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
+  grid-gap: 12px;
+  grid-gap: 12px;
   gap: 12px;
   padding: 14px;
   background: #f8fafc;
@@ -3453,6 +3553,8 @@ tbody tr:hover td {
   min-width: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  grid-gap: 10px;
+  grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
@@ -3478,6 +3580,8 @@ tbody tr:hover td {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 12px;
+  grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
@@ -3536,6 +3640,8 @@ tbody tr:hover td {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
 }
 
@@ -3545,12 +3651,16 @@ tbody tr:hover td {
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
+  grid-gap: 8px;
+  grid-gap: 8px;
   gap: 8px;
 }
 
 .work-type-budget-item {
   min-width: 0;
   display: grid;
+  grid-gap: 4px;
+  grid-gap: 4px;
   grid-gap: 4px;
   grid-gap: 4px;
   grid-gap: 4px;
@@ -3567,6 +3677,8 @@ tbody tr:hover td {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -3627,12 +3739,16 @@ tbody tr:hover td {
   grid-gap: 12px;
   grid-gap: 12px;
   grid-gap: 12px;
+  grid-gap: 12px;
+  grid-gap: 12px;
   gap: 12px;
 }
 
 .payment-summary-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -3643,6 +3759,8 @@ tbody tr:hover td {
 .payment-summary-side div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 10px;
+  grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
@@ -3675,6 +3793,8 @@ tbody tr:hover td {
 .payment-summary-side {
   display: grid;
   align-content: stretch;
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -3787,12 +3907,16 @@ tbody tr:hover td {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
 }
 
 .before-vat-summary-grid div {
   min-width: 0;
   display: grid;
+  grid-gap: 5px;
+  grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
@@ -3826,6 +3950,8 @@ tbody tr:hover td {
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
+  grid-gap: 10px;
+  grid-gap: 10px;
   gap: 10px;
 }
 
@@ -3833,6 +3959,8 @@ tbody tr:hover td {
   min-width: 0;
   display: grid;
   grid-template-rows: auto 1fr;
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -3861,12 +3989,16 @@ tbody tr:hover td {
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
+  grid-gap: 6px;
+  grid-gap: 6px;
   gap: 6px;
 }
 
 .small-summary-card p {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 10px;
+  grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
   grid-gap: 10px;
@@ -3928,6 +4060,8 @@ tbody tr:hover td {
   grid-gap: 10px 12px;
   grid-gap: 10px 12px;
   grid-gap: 10px 12px;
+  grid-gap: 10px 12px;
+  grid-gap: 10px 12px;
   gap: 10px 12px;
   min-width: 0;
 }
@@ -3935,6 +4069,8 @@ tbody tr:hover td {
 .field {
   display: grid;
   align-content: start;
+  grid-gap: 4px;
+  grid-gap: 4px;
   grid-gap: 4px;
   grid-gap: 4px;
   grid-gap: 4px;
@@ -4000,6 +4136,8 @@ tbody tr:hover td {
   width: 100%;
   min-height: 42px;
   display: grid;
+  grid-gap: 2px;
+  grid-gap: 2px;
   grid-gap: 2px;
   grid-gap: 2px;
   grid-gap: 2px;
@@ -4074,6 +4212,8 @@ tbody tr:hover td {
   grid-gap: 7px;
   grid-gap: 7px;
   grid-gap: 7px;
+  grid-gap: 7px;
+  grid-gap: 7px;
   gap: 7px;
 }
 
@@ -4085,6 +4225,8 @@ tbody tr:hover td {
 
 .choice-control-vat {
   display: grid;
+  grid-gap: 7px;
+  grid-gap: 7px;
   grid-gap: 7px;
   grid-gap: 7px;
   grid-gap: 7px;
@@ -4162,6 +4304,8 @@ tbody tr:hover td {
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
+  grid-gap: 8px;
+  grid-gap: 8px;
   gap: 8px;
   padding: 8px;
   border: 1px solid #d8e0ea;
@@ -4180,6 +4324,8 @@ tbody tr:hover td {
 
 .file-control {
   display: grid;
+  grid-gap: 5px;
+  grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
   grid-gap: 5px;
@@ -4255,12 +4401,16 @@ tbody tr:hover td {
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
+  grid-gap: 8px;
+  grid-gap: 8px;
   gap: 8px;
 }
 
 .enum-list-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-gap: 8px;
+  grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
   grid-gap: 8px;
@@ -4351,6 +4501,8 @@ tbody tr:hover td {
   overflow: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  grid-gap: 6px;
+  grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
   grid-gap: 6px;
@@ -4771,6 +4923,8 @@ tbody tr:hover td {
     grid-gap: 10px;
     grid-gap: 10px;
     grid-gap: 10px;
+    grid-gap: 10px;
+    grid-gap: 10px;
     gap: 10px;
   }
 
@@ -4788,6 +4942,8 @@ tbody tr:hover td {
   .dash-table td {
     display: grid;
     grid-template-columns: minmax(96px, 38%) minmax(0, 1fr);
+    grid-gap: 10px;
+    grid-gap: 10px;
     grid-gap: 10px;
     grid-gap: 10px;
     grid-gap: 10px;
@@ -5020,6 +5176,8 @@ tbody tr:hover td {
     grid-gap: 6px;
     grid-gap: 6px;
     grid-gap: 6px;
+    grid-gap: 6px;
+    grid-gap: 6px;
     gap: 6px;
   }
 
@@ -5036,6 +5194,8 @@ tbody tr:hover td {
     display: grid;
     grid-template-columns: minmax(86px, 1fr) minmax(0, auto);
     align-items: center;
+    grid-gap: 8px;
+    grid-gap: 8px;
     grid-gap: 8px;
     grid-gap: 8px;
     grid-gap: 8px;
@@ -5283,6 +5443,8 @@ tbody tr:hover td {
     grid-gap: 10px;
     grid-gap: 10px;
     grid-gap: 10px;
+    grid-gap: 10px;
+    grid-gap: 10px;
     gap: 10px;
     padding: env(safe-area-inset-top, 0px) 12px 0;
     background: var(--mobile-green);
@@ -5459,6 +5621,8 @@ tbody tr:hover td {
     grid-gap: 8px;
     grid-gap: 8px;
     grid-gap: 8px;
+    grid-gap: 8px;
+    grid-gap: 8px;
     gap: 8px;
     min-height: 46px;
     border-radius: 10px;
@@ -5523,6 +5687,8 @@ tbody tr:hover td {
     display: grid;
     place-items: center;
     align-content: center;
+    grid-gap: 2px;
+    grid-gap: 2px;
     grid-gap: 2px;
     grid-gap: 2px;
     grid-gap: 2px;
@@ -6189,6 +6355,8 @@ tbody tr:hover td {
     display: grid;
     grid-template-columns: minmax(58px, auto) minmax(92px, 1fr) auto;
     align-items: center;
+    grid-gap: 6px;
+    grid-gap: 6px;
     grid-gap: 6px;
     grid-gap: 6px;
     grid-gap: 6px;
@@ -7020,5 +7188,4 @@ tbody tr:hover td {
     padding: 7px;
   }
 }
-
 

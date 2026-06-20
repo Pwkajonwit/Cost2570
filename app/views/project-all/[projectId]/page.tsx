@@ -142,11 +142,11 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                   <thead>
                     <tr>
                       <th>ประเภท</th>
-                      <th>รายการ</th>
-                      <th>ยอดเงิน</th>
-                      <th>ยอดโอน</th>
-                      <th>เฉลี่ย</th>
-                      <th>% รวม</th>
+                      <th className="numeric-cell">รายการ</th>
+                      <th className="numeric-cell">ยอดเงิน</th>
+                      <th className="numeric-cell">ยอดโอน</th>
+                      <th className="numeric-cell">เฉลี่ย</th>
+                      <th className="numeric-cell">% รวม</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -314,8 +314,8 @@ function ContractorSummaryPanel({
           <thead>
             <tr>
               <th>ชื่อผู้รับเหมา</th>
-              <th>จำนวนเงิน</th>
-              <th>ยอดเงิน</th>
+              <th className="numeric-cell">จำนวนเงิน</th>
+              <th className="numeric-cell">ยอดเงิน</th>
               <th>รายละเอียดงาน</th>
             </tr>
           </thead>
@@ -460,8 +460,8 @@ function ContractorTablePanel({
           <thead>
             <tr>
               <th>ชื่อผู้รับเหมา</th>
-              <th>จำนวนเงิน</th>
-              <th>ยอดเงิน</th>
+              <th className="numeric-cell">จำนวนเงิน</th>
+              <th className="numeric-cell">ยอดเงิน</th>
               <th>รายละเอียดงาน</th>
             </tr>
           </thead>

@@ -3,11 +3,11 @@ import { TABLES } from "@/lib/config";
 import { clearCache } from "@/lib/cache";
 import { uploadBillImage } from "@/lib/drive";
 import { applyBillFormulas } from "@/lib/formulas";
-import { appendRow } from "@/lib/sheets";
+import { appendRow, getRows } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
 const BILL_IMAGE_COLUMNS = ["รูปถ่ายบิล"];
-const SEQUENCE_COLUMNS = ["ลำดับ"];
+const SEQUENCE_COLUMNS = ["ลำดับ", "ลำดับtest"];
 const BILL_DATE_COLUMNS = ["ว/ด/ป"];
 const STATUS_COLUMNS = ["สถานะ"];
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 async function readBillRow(request: NextRequest): Promise<SheetRow> {
   const contentType = request.headers.get("content-type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    return ensureBillStatus(await request.json());
+    return ensureUniqueBillSequence(ensureBillStatus(await request.json()));
   }
 
   const formData = await request.formData();
@@ -36,6 +36,8 @@ async function readBillRow(request: NextRequest): Promise<SheetRow> {
     if (isFile(value)) continue;
     row[key] = value;
   }
+
+  await ensureUniqueBillSequence(row);
 
   const billImageField = findFileField(formData, BILL_IMAGE_COLUMNS);
   const billImages = billImageField ? formData.getAll(billImageField).filter(isUsableFile) : [];
@@ -58,10 +60,36 @@ async function readBillRow(request: NextRequest): Promise<SheetRow> {
 function ensureBillStatus(row: SheetRow) {
   STATUS_COLUMNS.forEach(column => {
     if (row[column] === undefined || row[column] === null || String(row[column]).trim() === "") {
-      row[column] = "อนุมัติ";
+      row[column] = "รออนุมัติ";
     }
   });
   return row;
+}
+
+async function ensureUniqueBillSequence(row: SheetRow) {
+  const rows = await getRows(TABLES.DATA, 15_000);
+  const currentSequence = firstRowValue(row, SEQUENCE_COLUMNS).trim();
+  const usedSequences = new Set(
+    rows
+      .map(existingRow => firstRowValue(existingRow, SEQUENCE_COLUMNS).trim())
+      .filter(Boolean)
+  );
+
+  if (currentSequence && !usedSequences.has(currentSequence)) {
+    row["ลำดับ"] = currentSequence;
+    return row;
+  }
+
+  const nextSequence = rows.reduce((max, existingRow) => {
+    return Math.max(max, ...SEQUENCE_COLUMNS.map(column => toSequenceNumber(existingRow[column])));
+  }, 0) + 1;
+  row["ลำดับ"] = String(nextSequence);
+  return row;
+}
+
+function toSequenceNumber(value: unknown) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function findFileField(formData: FormData, columns: string[]) {
