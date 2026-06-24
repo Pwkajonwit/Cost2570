@@ -117,6 +117,13 @@ export async function getInitialValues(tableName: string): Promise<SheetRow> {
     if (column.initialValue === "nextProjectId") values[column.name] = String(await nextProjectId());
     if (column.initialValue === "nextContractWorkId") values[column.name] = await nextContractWorkId();
     if (column.initialValue === "nextBankId") values[column.name] = await nextBankId();
+    if (column.initialValue === "nextStoreId") values[column.name] = await nextPrefixedId(TABLES.STORE, "id_store", "ST", 100);
+    if (column.initialValue === "nextContractorId") values[column.name] = await nextPrefixedId(TABLES.CONTRACTOR, "id_Contractor", "CT", 100);
+    if (column.initialValue === "nextPeopleId") values[column.name] = await nextPrefixedId(TABLES.PEOPLE, "รหัสพนักงาน", "PE", 100);
+    if (column.initialValue === "nextCarId") values[column.name] = await nextPrefixedId(TABLES.CAR, "id_car", "CAR", 100);
+    if (column.initialValue === "nextCustomerId") values[column.name] = await nextPrefixedId(TABLES.CUSTOMER, "id_cus", "C", 100);
+    if (column.initialValue === "nextCompanyId") values[column.name] = await nextPrefixedId(TABLES.COMPANY, "id_Company", "CO", 100);
+    if (column.initialValue === "nextLoanId") values[column.name] = await nextPrefixedId(TABLES.LOAN, "id", "L", 100);
     if (!values[column.name]) values[column.name] = column.initialValue;
   }
   return values;
@@ -150,6 +157,20 @@ async function nextProjectId() {
 }
 
 async function nextBankId() {
+  return nextPrefixedId(TABLES.BANK, "id_bank", "Ba", 100);
+}
+
+async function nextPrefixedId(tableName: string, columnName: string, prefix: string, minimum = 0) {
+  const rows = await getRows(tableName, 15_000);
+  const next = rows.reduce((max, row) => {
+    const value = String(row[columnName] || "");
+    const match = value.match(/(\d+)$/);
+    return Math.max(max, match ? Number(match[1]) : 0);
+  }, minimum) + 1;
+  return `${prefix}${next}`;
+}
+
+async function legacyNextBankId() {
   const rows = await getRows(TABLES.BANK, 15_000);
   const next = rows.reduce((max, row) => {
     const value = String(row.id_bank || "");

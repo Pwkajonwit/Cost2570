@@ -3,6 +3,7 @@ import { clearCache } from "@/lib/cache";
 import { PRIMARY_VIEWS, TABLE_KEYS, TABLES, VIEW_COLUMNS } from "@/lib/config";
 import { uploadTableImage } from "@/lib/drive";
 import { applyContractFormulas, applyProjectFormulas } from "@/lib/formulas";
+import { getFormSchema } from "@/lib/schemas";
 import { appendRow, deleteRows, getRows, updateRow } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
     const row = body.row && typeof body.row === "object" ? body.row as SheetRow : {};
+    sanitizeBySchema(row, tableName);
+    validateRequiredBySchema(row, tableName);
     const output = tableName === TABLES.CONTRACT_WORK
       ? await applyContractFormulas(row)
       : tableName === TABLES.PROJECT
@@ -59,7 +62,13 @@ export async function PATCH(request: NextRequest) {
 
     const sheetRow = Number(body.sheetRow);
     const values = body.values && typeof body.values === "object" ? body.values as SheetRow : {};
-    const output = tableName === TABLES.PROJECT ? applyProjectFormulas(values) : values;
+    sanitizeBySchema(values, tableName);
+    validateRequiredBySchema(values, tableName);
+    const output = tableName === TABLES.CONTRACT_WORK
+      ? await applyContractFormulas(values)
+      : tableName === TABLES.PROJECT
+        ? applyProjectFormulas(values)
+        : values;
     const row = await updateRow(tableName, sheetRow, output);
     clearCache("rows:");
     return NextResponse.json({ ok: true, row });
@@ -86,6 +95,38 @@ export async function DELETE(request: NextRequest) {
 
 function canManageTable(tableName: string) {
   return PRIMARY_VIEWS.some(view => view.type === "table" && view.table === tableName);
+}
+
+function sanitizeBySchema(row: SheetRow, tableName: string) {
+  const schema = getFormSchema(tableName);
+  schema.forEach(field => {
+    if (field.type === "Hidden") return;
+    if (isFieldVisible(field, row)) return;
+    row[field.name] = "";
+  });
+  return row;
+}
+
+function validateRequiredBySchema(row: SheetRow, tableName: string) {
+  const missing = getFormSchema(tableName).find(field => {
+    if (!field.required || field.type === "Hidden" || field.readonly) return false;
+    if (!isFieldVisible(field, row)) return false;
+    return !hasRowValue(row[field.name]);
+  });
+  if (missing) throw new Error(`กรุณากรอก ${missing.name}`);
+}
+
+function isFieldVisible(field: ReturnType<typeof getFormSchema>[number], row: SheetRow) {
+  if (!field.showIf) return true;
+  const actual = row[field.showIf.column] || "";
+  if (field.showIf.equals !== undefined) return String(actual) === field.showIf.equals;
+  if (field.showIf.in) return field.showIf.in.includes(String(actual));
+  if (field.showIf.notBlank) return hasRowValue(actual);
+  return true;
+}
+
+function hasRowValue(value: unknown) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
 function errorMessage(error: unknown) {

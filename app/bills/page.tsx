@@ -67,6 +67,8 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
             label: sort === "latest" ? "ล่าสุดก่อน" : "เก่าสุดก่อน",
             direction: sort
           }}
+          detailBasePath="/bills"
+          detailKeyColumn="ลำดับ"
           cellFormatters={{
             "ผู้เบิก": value => {
               const key = String(value || "").trim();

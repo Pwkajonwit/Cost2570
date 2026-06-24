@@ -64,6 +64,7 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
       applyRefFill(next, field, form, value);
       normalizeDependentValues(next, field.name, form);
       if (form.tableName === TABLES.DATA && field.name === "จำนวนหัก") return next;
+      pruneHiddenConditionalValues(next, form);
       applyLocalFormulas(next, form.tableName);
       return next;
     });
@@ -73,10 +74,17 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
     event.preventDefault();
     if (!submitPath) return;
 
+    const submitValues = sanitizeValuesForSubmit(values, form);
+    const validationError = validateVisibleRequiredFields(submitValues, form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     const formElement = event.currentTarget;
     const body = new FormData();
     body.set("tableName", form.tableName);
-    Object.entries(values).forEach(([key, value]) => body.append(key, value));
+    Object.entries(submitValues).forEach(([key, value]) => body.append(key, value));
     if (isEditing && editSheetRow !== null) body.set("sheetRow", String(editSheetRow));
 
     let hasFiles = false;
@@ -101,7 +109,7 @@ export function FormModal({ form, title = "เพิ่มข้อมูล", b
           : await fetch(submitPath, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tableName: form.tableName, sheetRow: editSheetRow, values })
+            body: JSON.stringify({ tableName: form.tableName, sheetRow: editSheetRow, values: submitValues })
           })
         : await fetch(submitPath, {
           method: "POST",
@@ -612,6 +620,31 @@ function applyRefFill(values: Record<string, string>, field: FieldSchema, form: 
   const selectedOption = (form.refOptions[field.name] || []).find(option => String(option.value) === value);
   Object.entries(field.refFill).forEach(([targetField, sourceColumn]) => {
     values[targetField] = selectedOption ? String(selectedOption.row?.[sourceColumn] ?? "") : "";
+  });
+}
+
+function sanitizeValuesForSubmit(values: Record<string, string>, form: FormPayload) {
+  const next = { ...values };
+  pruneHiddenConditionalValues(next, form);
+  applyLocalFormulas(next, form.tableName);
+  return next;
+}
+
+function validateVisibleRequiredFields(values: Record<string, string>, form: FormPayload) {
+  const missingField = form.schema.find(field => {
+    if (!field.required || field.type === "Hidden" || field.readonly) return false;
+    if (!isFieldVisible(field, values)) return false;
+    return !hasValue(values[field.name]);
+  });
+
+  return missingField ? `กรุณากรอก ${getFieldLabel(missingField)}` : "";
+}
+
+function pruneHiddenConditionalValues(values: Record<string, string>, form: FormPayload) {
+  form.schema.forEach(field => {
+    if (field.type === "Hidden") return;
+    if (isFieldVisible(field, values)) return;
+    values[field.name] = "";
   });
 }
 

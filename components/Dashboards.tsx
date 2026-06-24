@@ -2,6 +2,7 @@
 import { MainDashboardClient } from "@/components/MainDashboardClient";
 import { WithdrawDashboardClient, type WithdrawFilters } from "@/components/WithdrawDashboardClient";
 import { money, toNumber } from "@/lib/numbers";
+import { computeBillTransferAmount } from "@/lib/project-summary";
 import { getRows } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
@@ -483,27 +484,7 @@ function projectValue(row: SheetRow, columns: string[]) {
   return firstValue(row, columns);
 }
 
-function computeTransferAmount(row: SheetRow) {
-  const amount = toNumber(row["à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™"]);
-  const hasVat = hasValue(row.vat);
-  const hasDeduct = hasValue(row["à¸«à¸±à¸"]);
-  if (!hasVat && !hasDeduct) return amount;
-  if (hasVat && hasDeduct) return amount * 104 / 107;
-  if (hasVat) return amount;
-  if (hasDeduct) return amount * computeDeductMultiplier(row);
-  return 0;
-}
-
-function computeDeductMultiplier(row: SheetRow) {
-  const deduct = String(row["à¸«à¸±à¸"] || "").trim();
-  const status = String(row["statusà¸„à¹ˆà¸²à¹à¸£à¸‡"] || "").trim();
-  const company = status === "à¸šà¸£à¸´à¸©à¸±à¸—";
-  if (deduct === "1") return company ? 1.06 : 0.99;
-  if (deduct === "3") return company ? 1.04 : 0.97;
-  if (deduct === "5") return company ? 1.02 : 0.95;
-  if (deduct === "8") return company ? 0.99 : 0.92;
-  return 1;
-}
+const computeTransferAmount = computeBillTransferAmount;
 
 function firstValue(row: SheetRow, columns: string[]) {
   for (const column of columns) {

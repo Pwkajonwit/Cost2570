@@ -39,6 +39,14 @@ export function hydrateDataRows(rows: SheetRow[]) {
   });
 }
 
+export function computeBillAmount(row: SheetRow) {
+  return sumColumns([row], AMOUNT_COLUMNS);
+}
+
+export function computeBillTransferAmount(row: SheetRow) {
+  return computeTransferAmount(row);
+}
+
 export function rowsForProject(dataRows: SheetRow[], projectId: RowValue | undefined) {
   const id = String(projectId || "").trim();
   return hydrateDataRows(dataRows).filter(row => String(row["ID Project"] || "").trim() === id);

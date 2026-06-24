@@ -83,7 +83,7 @@ async function renderView(
     const fallback = rows[0] ? Object.keys(rows[0]).filter(column => !column.startsWith("_")) : [];
     const columns = getViewColumns(view.name, fallback);
     if (view.position === "menu") {
-      const keyColumn = TABLE_KEYS[view.table] || "_RowNumber";
+      const keyColumn = tableKeyColumn(view.id, view.table);
       const schemaAddEventName = form ? `open-${view.id}-form` : undefined;
       const schemaEditEventName = form ? `open-${view.id}-edit-form` : undefined;
       return (
@@ -97,7 +97,7 @@ async function renderView(
             keyColumn={keyColumn}
             search={search}
             rowLabel="รายการ"
-            detailBasePath={view.id === "project-all" ? "/views/project-all" : undefined}
+            detailBasePath={detailBasePathForView(view.id)}
             addOpenEventName={schemaAddEventName}
             editOpenEventName={schemaEditEventName}
             displayLookups={view.id === "project-all" ? { "บริษัท": companyLookup(companyRows) } : undefined}
@@ -251,7 +251,27 @@ function getManageFormColumns(columns: string[], headers: string[], keyColumn: s
 }
 
 function usesSchemaForm(viewId: string) {
-  return viewId === "contract-open" || viewId === "project-all" || viewId === "banks";
+  return ["contract-open", "project-all", "banks", "stores", "contractors", "people", "cars", "customers", "companies", "loans"].includes(viewId);
+}
+
+function detailBasePathForView(viewId: string) {
+  if (viewId === "project-all") return "/views/project-all";
+  if (["banks", "stores", "contractors", "people", "cars", "customers", "companies", "loans"].includes(viewId)) return `/views/${viewId}`;
+  return undefined;
+}
+
+function tableKeyColumn(viewId: string, tableName: string) {
+  const keyByView: Record<string, string> = {
+    banks: "id_bank",
+    stores: "id_store",
+    contractors: "id_Contractor",
+    people: "รหัสพนักงาน",
+    cars: "id_car",
+    customers: "id_cus",
+    companies: "id_Company",
+    loans: "id"
+  };
+  return keyByView[viewId] || TABLE_KEYS[tableName] || "_RowNumber";
 }
 
 const PROJECT_TOTAL_COLUMNS = [

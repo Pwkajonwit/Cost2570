@@ -3,6 +3,7 @@ import { TABLES } from "@/lib/config";
 import { clearCache } from "@/lib/cache";
 import { createBillPdfFromHtml, uploadBillImage } from "@/lib/drive";
 import { applyBillFormulas } from "@/lib/formulas";
+import { getFormSchema } from "@/lib/schemas";
 import { appendRow, getRows } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
@@ -14,6 +15,8 @@ const STATUS_COLUMNS = ["สถานะ"];
 export async function POST(request: NextRequest) {
   try {
     const row = await readBillRow(request);
+    sanitizeBySchema(row, TABLES.DATA);
+    validateRequiredBySchema(row, TABLES.DATA);
     const output = await applyBillFormulas(row);
     applyAppSheetBillSystemFields(output);
     const pdfWarning = await attachBillPdf(output);
@@ -66,6 +69,34 @@ function ensureBillStatus(row: SheetRow) {
     }
   });
   return row;
+}
+
+function sanitizeBySchema(row: SheetRow, tableName: string) {
+  const schema = getFormSchema(tableName);
+  schema.forEach(field => {
+    if (field.type === "Hidden") return;
+    if (isFieldVisible(field, row)) return;
+    row[field.name] = "";
+  });
+  return row;
+}
+
+function validateRequiredBySchema(row: SheetRow, tableName: string) {
+  const missing = getFormSchema(tableName).find(field => {
+    if (!field.required || field.type === "Hidden" || field.readonly) return false;
+    if (!isFieldVisible(field, row)) return false;
+    return !hasValue(row[field.name]);
+  });
+  if (missing) throw new Error(`กรุณากรอก ${missing.name}`);
+}
+
+function isFieldVisible(field: ReturnType<typeof getFormSchema>[number], row: SheetRow) {
+  if (!field.showIf) return true;
+  const actual = row[field.showIf.column] || "";
+  if (field.showIf.equals !== undefined) return String(actual) === field.showIf.equals;
+  if (field.showIf.in) return field.showIf.in.includes(String(actual));
+  if (field.showIf.notBlank) return hasValue(actual);
+  return true;
 }
 
 function applyAppSheetBillSystemFields(row: SheetRow) {

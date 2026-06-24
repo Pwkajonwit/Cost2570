@@ -33,7 +33,11 @@ export const TABLE_KEYS: Record<string, string> = {
   [TABLES.CAR]: "id_car",
   [TABLES.PEOPLE]: "รหัสพนักงาน",
   [TABLES.FILTER_MAIN]: "id_fmain",
-  [TABLES.CONTRACT_WORK]: "id_Conwork"
+  [TABLES.CONTRACT_WORK]: "id_Conwork",
+  [TABLES.BANK]: "id_bank",
+  [TABLES.CUSTOMER]: "id_cus",
+  [TABLES.COMPANY]: "id_Company",
+  [TABLES.LOAN]: "id"
 };
 
 export const PRIMARY_VIEWS = [
@@ -51,6 +55,8 @@ export const PRIMARY_VIEWS = [
   { id: "people", name: "6. ชื่อพนักงาน", type: "table", table: TABLES.PEOPLE, position: "menu" },
   { id: "cars", name: "7. ทะเบียนรถ", type: "table", table: TABLES.CAR, position: "menu" },
   { id: "customers", name: "8.ลูกค้า", type: "table", table: TABLES.CUSTOMER, position: "menu" }
+  , { id: "companies", name: "9. บริษัท", type: "table", table: TABLES.COMPANY, position: "menu" }
+  , { id: "loans", name: "10. ยืมเงิน", type: "table", table: TABLES.LOAN, position: "menu" }
 ] as const;
 
 export const VIEW_COLUMNS: Record<string, string[]> = {
@@ -63,5 +69,7 @@ export const VIEW_COLUMNS: Record<string, string[]> = {
   "5. รับเหมา": ["ชื่อเล่น", "ชื่อ-นามสกุล", "เลขบัญชี", "บัตรประจำตัวประชาชน", "เบอร์โทรศัพท์", "ที่อยู่", "รวมยอดเงินจ้าง", "จำกัดยอด/ปี"],
   "6. ชื่อพนักงาน": ["ชื่อเล่น", "ชื่อ-นามสกุล", "เลขบัญชี", "เบอร์โทร", "ที่อยู่", "เลขที่บัตรประชาชน"],
   "7. ทะเบียนรถ": ["หมายเลขทะเบียน", "ยี่ห้อรถ", "สี", "รับผิดชอบ", "รถของ"],
-  "8.ลูกค้า": ["ชื่อลูกค้า", "ที่อยู่", "เลขที่ผู้เสียภาษี"]
+  "8.ลูกค้า": ["ชื่อลูกค้า", "ที่อยู่", "เลขที่ผู้เสียภาษี"],
+  "9. ??????": ["id_Company", "??????????", "??????????", "????????", "???????", "????????????? ", "????????"],
+  "10. ???????": ["id", "????", "type", "?????????", "??????"]
 };
