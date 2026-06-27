@@ -63,7 +63,11 @@ export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle,
             <thead>
               <tr>
                 {detailBasePath ? <th className="table-detail-col">ดู</th> : null}
-                {columns.map(column => <th key={column}>{column}</th>)}
+                {columns.map(column => (
+                  <th key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-column={column}>
+                    {column}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -82,7 +86,7 @@ export function DataTable({ columns, rows, limit = 80, title = "Data", subtitle,
                     </td>
                   ) : null}
                   {columns.map(column => (
-                    <td key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-label={column}>
+                    <td key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-column={column} data-label={column}>
                       {renderCell(column, row[column], row, cellFormatters)}
                     </td>
                   ))}
@@ -245,5 +249,5 @@ function isImageColumn(column: string) {
 }
 
 function isAmountColumn(column: string) {
-  return /ยอด|เงิน|ราคา|vat|หัก|เครดิต|ค่าแรง|รวม|คงเหลือ|โอน/.test(column);
+  return /ยอด|เงิน|ราคา|vat|หัก|เครดิต|ค่าแรง|รวม|คงเหลือ|โอน|งบ/.test(column);
 }

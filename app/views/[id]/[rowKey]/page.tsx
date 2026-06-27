@@ -186,8 +186,8 @@ function detailTitle(viewId: string, row: SheetRow, fallback: string) {
     people: ["ชื่อเล่น", "ชื่อ-นามสกุล", "รหัสพนักงาน"],
     cars: ["หมายเลขทะเบียน", "id_car"],
     customers: ["ชื่อลูกค้า", "id_cus"],
-    companies: ["??????????", "??????????", "id_Company"],
-    loans: ["????", "????", "id"]
+    companies: ["ชื่อบริษัท", "ชื่ออังกฤษ", "id_Company"],
+    loans: ["ชื่อ", "type", "id"]
   };
   for (const column of titleColumns[viewId] || []) {
     const value = text(row[column]);

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TABLES } from "@/lib/config";
+import { validateBillRelations } from "@/lib/bill-validation";
 import { clearCache } from "@/lib/cache";
 import { createBillPdfFromHtml, uploadBillImage } from "@/lib/drive";
 import { applyBillFormulas } from "@/lib/formulas";
 import { getFormSchema } from "@/lib/schemas";
-import { appendRow, getRows } from "@/lib/sheets";
+import { appendAuditLog, appendRow, getRows } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
 const BILL_IMAGE_COLUMNS = ["รูปถ่ายบิล"];
@@ -17,10 +18,18 @@ export async function POST(request: NextRequest) {
     const row = await readBillRow(request);
     sanitizeBySchema(row, TABLES.DATA);
     validateRequiredBySchema(row, TABLES.DATA);
+    await validateBillRelations(row);
     const output = await applyBillFormulas(row);
     applyAppSheetBillSystemFields(output);
     const pdfWarning = await attachBillPdf(output);
     await appendRow(TABLES.DATA, output);
+    await appendAuditLog({
+      action: "CREATE",
+      tableName: TABLES.DATA,
+      key: firstRowValue(output, SEQUENCE_COLUMNS),
+      actor: request.headers.get("x-user-email") || "web",
+      details: { projectId: output["ID Project"] || "", status: output["สถานะ"] || "" }
+    }).catch(() => undefined);
     clearCache("rows:");
     return NextResponse.json({ ok: true, row: output, pdfWarning });
   } catch (error) {

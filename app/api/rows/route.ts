@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clearCache } from "@/lib/cache";
+import { canEditOrDeleteBill, validateBillStatusTransition } from "@/lib/bill-status";
+import { validateBillRelations } from "@/lib/bill-validation";
 import { PRIMARY_VIEWS, TABLE_KEYS, TABLES, VIEW_COLUMNS } from "@/lib/config";
 import { uploadTableImage } from "@/lib/drive";
-import { applyContractFormulas, applyProjectFormulas } from "@/lib/formulas";
+import { applyBillFormulas, applyContractFormulas, applyProjectFormulas } from "@/lib/formulas";
 import { getFormSchema } from "@/lib/schemas";
-import { appendRow, deleteRows, getRows, updateRow } from "@/lib/sheets";
+import { appendAuditLog, appendRow, deleteRows, getRows, updateRow } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -46,6 +48,13 @@ export async function POST(request: NextRequest) {
         ? applyProjectFormulas(row)
         : row;
     await appendRow(tableName, output);
+    await appendAuditLog({
+      action: "CREATE",
+      tableName,
+      key: String(output[TABLE_KEYS[tableName]] || ""),
+      actor: actorFromRequest(request),
+      details: { projectId: output["ID Project"] || "" }
+    }).catch(() => undefined);
     clearCache("rows:");
     clearCache("headers:");
     return NextResponse.json({ ok: true });
@@ -61,15 +70,31 @@ export async function PATCH(request: NextRequest) {
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
     const sheetRow = Number(body.sheetRow);
-    const values = body.values && typeof body.values === "object" ? body.values as SheetRow : {};
+    const patch = body.values && typeof body.values === "object" ? body.values as SheetRow : {};
+    const existingRows = await getRows(tableName);
+    const existing = existingRows.find(row => Number(row._sheetRow) === sheetRow);
+    if (!existing) throw new Error("ไม่พบข้อมูลที่ต้องการแก้ไข");
+    const values = { ...existing, ...patch };
+    if (tableName === TABLES.DATA) validateBillPatch(existing, patch, values);
     sanitizeBySchema(values, tableName);
     validateRequiredBySchema(values, tableName);
+    if (tableName === TABLES.DATA) await validateBillRelations(values);
     const output = tableName === TABLES.CONTRACT_WORK
       ? await applyContractFormulas(values)
       : tableName === TABLES.PROJECT
         ? applyProjectFormulas(values)
-        : values;
+        : tableName === TABLES.DATA
+          ? await applyBillFormulas(values)
+          : values;
     const row = await updateRow(tableName, sheetRow, output);
+    await appendAuditLog({
+      action: tableName === TABLES.DATA && Object.keys(patch).every(key => key === "สถานะ") ? "STATUS" : "UPDATE",
+      tableName,
+      key: String(row[TABLE_KEYS[tableName]] || ""),
+      sheetRow,
+      actor: actorFromRequest(request),
+      details: Object.fromEntries(Object.keys(patch).map(key => [key, row[key] ?? ""]))
+    }).catch(() => undefined);
     clearCache("rows:");
     return NextResponse.json({ ok: true, row });
   } catch (error) {
@@ -84,8 +109,18 @@ export async function DELETE(request: NextRequest) {
     if (!canManageTable(tableName)) return NextResponse.json({ error: "Table is not manageable" }, { status: 403 });
 
     const sheetRows = Array.isArray(body.sheetRows) ? body.sheetRows.map(Number) : [];
+    const deletingRows = (await getRows(tableName)).filter(row => sheetRows.includes(Number(row._sheetRow)));
     if (tableName === TABLES.PROJECT) await validateProjectDelete(sheetRows);
+    if (tableName === TABLES.DATA) await validateBillDelete(sheetRows);
     await deleteRows(tableName, sheetRows);
+    await Promise.all(deletingRows.map(row => appendAuditLog({
+      action: "DELETE",
+      tableName,
+      key: String(row[TABLE_KEYS[tableName]] || ""),
+      sheetRow: Number(row._sheetRow),
+      actor: actorFromRequest(request),
+      details: { projectId: row["ID Project"] || "" }
+    }).catch(() => undefined)));
     clearCache("rows:");
     return NextResponse.json({ ok: true, deleted: sheetRows.length });
   } catch (error) {
@@ -93,8 +128,33 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
+function validateBillPatch(existing: SheetRow, patch: SheetRow, values: SheetRow) {
+  const patchKeys = Object.keys(patch).filter(key => key !== "_sheetRow");
+  const statusOnly = patchKeys.length > 0 && patchKeys.every(key => key === "สถานะ");
+  if (statusOnly) {
+    validateBillStatusTransition(existing["สถานะ"], values["สถานะ"]);
+    return;
+  }
+  if (!canEditOrDeleteBill(existing["สถานะ"])) {
+    throw new Error("แก้ไขได้เฉพาะบิลที่รออนุมัติ");
+  }
+  if (String(values["สถานะ"] || "").trim() !== String(existing["สถานะ"] || "").trim()) {
+    throw new Error("กรุณาเปลี่ยนสถานะผ่านปุ่ม Workflow");
+  }
+}
+
+async function validateBillDelete(sheetRows: number[]) {
+  const rows = await getRows(TABLES.DATA);
+  const blocked = rows.filter(row => sheetRows.includes(Number(row._sheetRow)) && !canEditOrDeleteBill(row["สถานะ"]));
+  if (blocked.length) throw new Error("ลบได้เฉพาะบิลที่รออนุมัติ");
+}
+
 function canManageTable(tableName: string) {
   return PRIMARY_VIEWS.some(view => view.type === "table" && view.table === tableName);
+}
+
+function actorFromRequest(request: NextRequest) {
+  return request.headers.get("x-user-email") || "web";
 }
 
 function sanitizeBySchema(row: SheetRow, tableName: string) {

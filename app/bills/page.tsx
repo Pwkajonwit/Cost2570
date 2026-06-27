@@ -1,6 +1,7 @@
-import { TABLES, VIEW_COLUMNS } from "@/lib/config";
+import { TABLES } from "@/lib/config";
 import { DataTable } from "@/components/DataTable";
 import { FormModal } from "@/components/FormModal";
+import { BillWorkflowActions } from "@/components/BillWorkflowActions";
 import { getFormPayload } from "@/lib/form";
 import { hydrateBillRows } from "@/lib/formulas";
 import { getRows } from "@/lib/sheets";
@@ -19,7 +20,22 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
   const pageSize = parsePositiveInt(firstSearchParam(query?.pageSize), 80);
   const sort = parseSort(firstSearchParam(query?.sort));
   const viewName = "กรอกบิล";
-  const columns = VIEW_COLUMNS[viewName];
+  const columns = [
+    "ลำดับ",
+    "ID Project",
+    "ชื่อ Project",
+    "ร้าน/บุคคล",
+    "สินค้า/ทำงาน",
+    "บิล",
+    "ประเภท",
+    "ยอดเงิน",
+    "เงื่อนไข",
+    "ผู้เบิก",
+    "ว/ด/ป",
+    "รูปถ่ายบิล",
+    "สถานะ",
+    "จัดการ"
+  ];
   const [allRows, peopleRows, form] = await Promise.all([
     safeRows(TABLES.DATA),
     safeRows(TABLES.PEOPLE),
@@ -47,7 +63,12 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
             <button type="submit" className="primary">ค้นหา</button>
             {search ? <a className="bills-clear-link" href="/bills">ล้าง</a> : null}
           </form>
-          {form ? <FormModal form={form} title="เพิ่มบิล" buttonLabel="เพิ่มบิล" submitPath="/api/bills" openEventName="open-bill-form" /> : null}
+          {form ? (
+            <>
+              <FormModal form={form} title="เพิ่มบิล" buttonLabel="เพิ่มบิล" submitPath="/api/bills" openEventName="open-bill-form" />
+              <FormModal form={form} title="แก้ไขบิล" buttonLabel="แก้ไขบิล" submitPath="/api/rows" openEventName="open-bill-edit-form" hideLauncher />
+            </>
+          ) : null}
         </div>
         <DataTable
           columns={columns}
@@ -70,6 +91,8 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
           detailBasePath="/bills"
           detailKeyColumn="ลำดับ"
           cellFormatters={{
+            "จัดการ": (_value, row) => <BillWorkflowActions row={row} compact allowEdit />,
+            "เงื่อนไข": (_value, row) => <BillConditions row={row} />,
             "ผู้เบิก": value => {
               const key = String(value || "").trim();
               return requesterNames[key] || key;
@@ -79,6 +102,17 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
       </section>
     </>
   );
+}
+
+function BillConditions({ row }: { row: SheetRow }) {
+  const values = [
+    row.vat ? `VAT ${row.vat}` : "",
+    row["หัก"] ? `หัก ${row["หัก"]}` : "",
+    row["เครดิต"] ? `เครดิต ${row["เครดิต"]}` : ""
+  ].filter(Boolean);
+  return values.length ? (
+    <span className="bill-condition-cell">{values.join(" · ")}</span>
+  ) : <span className="bill-condition-empty">-</span>;
 }
 
 function requesterNameMap(peopleRows: SheetRow[]) {

@@ -1,4 +1,5 @@
 import { toNumber } from "@/lib/numbers";
+import { isCommittedBill } from "@/lib/bill-status";
 import type { RowValue, SheetRow } from "@/lib/types";
 
 const AMOUNT_COLUMNS = [
@@ -71,7 +72,8 @@ export function hydrateProjectSummary(project: SheetRow, projectDataRows: SheetR
     other: number;
   };
 } {
-  const projectTotal = sumColumns(projectDataRows, ["ยอดเงิน"]);
+  const committedRows = projectDataRows.filter(isCommittedBill);
+  const projectTotal = sumColumns(committedRows, ["ยอดเงิน"]);
   const workTotal = toNumber(valueOf(project, ["ยอดงาน"]));
   const totalAll = hasValue(project["รวม ALL"]) ? toNumber(project["รวม ALL"]) : projectTotal;
   const totalVat = hasValue(project["ยอดรวม vat"]) ? toNumber(project["ยอดรวม vat"]) : workTotal * 1.07;
@@ -88,32 +90,36 @@ export function hydrateProjectSummary(project: SheetRow, projectDataRows: SheetR
       totalVat,
       budget,
       totalAll,
-      billCount: projectDataRows.length,
+      billCount: committedRows.length,
       remaining: budget - totalAll,
-      material: sumColumns(projectDataRows, ["ค่าของ"]),
-      labor: sumColumns(projectDataRows, ["ค่าแรง"]),
-      staff: sumColumns(projectDataRows, ["พนักงาน"]),
-      fuel: sumColumns(projectDataRows, ["น้ำมัน"]),
-      carRepair: sumColumns(projectDataRows, ["ซ่อมรถ"]),
-      machine: sumColumns(projectDataRows, ["เครื่องจักร"]),
-      tool: sumColumns(projectDataRows, ["เครื่องมือ"]),
-      other: sumColumns(projectDataRows, ["อื่นๆ"])
+      material: sumColumns(committedRows, ["ค่าของ"]),
+      labor: sumColumns(committedRows, ["ค่าแรง"]),
+      staff: sumColumns(committedRows, ["พนักงาน"]),
+      fuel: sumColumns(committedRows, ["น้ำมัน"]),
+      carRepair: sumColumns(committedRows, ["ซ่อมรถ"]),
+      machine: sumColumns(committedRows, ["เครื่องจักร"]),
+      tool: sumColumns(committedRows, ["เครื่องมือ"]),
+      other: sumColumns(committedRows, ["อื่นๆ"])
     }
   };
 }
 
 function computeTransferAmount(row: SheetRow) {
-  const amount = toNumber(row["ยอดเงิน"]);
+  const amount = hasValue(row["ยอดเงิน"]) ? toNumber(row["ยอดเงิน"]) : computeBillAmount(row);
   const hasVat = hasValue(row.vat);
   const hasDeduct = hasValue(row["หัก"]);
+  const customDeduct = hasValue(row["จำนวนหัก"]) ? toNumber(row["จำนวนหัก"]) : null;
   if (!hasVat && !hasDeduct) return amount;
-  if (hasVat && hasDeduct) return amount * 104 / 107;
+  if (hasVat && hasDeduct) return customDeduct === null ? amount * 104 / 107 : amount - customDeduct;
   if (hasVat) return amount;
-  if (hasDeduct) return amount * computeDeductMultiplier(row);
+  if (hasDeduct && customDeduct !== null) {
+    return (isCompanyLabor(row) ? amount * 1.07 : amount) - customDeduct;
+  }
+  if (hasDeduct) return amount * computeBillDeductMultiplier(row);
   return 0;
 }
 
-function computeDeductMultiplier(row: SheetRow) {
+export function computeBillDeductMultiplier(row: SheetRow) {
   const deduct = String(row["หัก"] || "").trim();
   const status = String(row["statusค่าแรง"] || "").trim();
   const company = status === "บริษัท";
@@ -121,5 +127,10 @@ function computeDeductMultiplier(row: SheetRow) {
   if (deduct === "3") return company ? 1.04 : 0.97;
   if (deduct === "5") return company ? 1.02 : 0.95;
   if (deduct === "8") return company ? 0.99 : 0.92;
-  return 1;
+  const rate = toNumber(row["หัก"]);
+  return company ? 1.07 - rate / 100 : 1 - rate / 100;
+}
+
+function isCompanyLabor(row: SheetRow) {
+  return String(row["statusค่าแรง"] || "").trim() === "บริษัท";
 }

@@ -1,6 +1,7 @@
 ﻿import { notFound } from "next/navigation";
 import { BillFollowDashboard, MainDashboard, WithdrawDashboard, WorkStatusDashboard } from "@/components/Dashboards";
 import { DataTable } from "@/components/DataTable";
+import { isCommittedBill } from "@/lib/bill-status";
 import { FormModal } from "@/components/FormModal";
 import { ManageTableClient } from "@/components/ManageTableClient";
 import { TABLE_KEYS, TABLES } from "@/lib/config";
@@ -288,6 +289,7 @@ const PROJECT_TOTAL_COLUMNS = [
 
 function hydrateProjectRowsForList(projectRows: Awaited<ReturnType<typeof getRows>>, dataRows: Awaited<ReturnType<typeof getRows>>) {
   const totals = dataRows.reduce<Record<string, number>>((accumulator, row) => {
+    if (!isCommittedBill(row)) return accumulator;
     const projectId = String(row["ID Project"] || "").trim();
     if (!projectId) return accumulator;
     const amount = toNumber(row["ยอดเงิน"]) || PROJECT_TOTAL_COLUMNS.slice(1).reduce((sum, column) => sum + toNumber(row[column]), 0);

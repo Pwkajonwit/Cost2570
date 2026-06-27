@@ -512,6 +512,7 @@ function optionSearchText(option: RefOption) {
 function customChoiceConfig(fieldName: string) {
   if (fieldName === "vat") return { optionValue: "ระบุเอง", placeholder: "กำหนด VAT เอง" };
   if (fieldName === "หัก") return { optionValue: "ระบุเอง", placeholder: "กำหนดเปอร์เซ็นต์หักเอง" };
+  if (fieldName === "เครดิต") return { optionValue: "ระบุเอง", placeholder: "กำหนดเครดิตเอง (วัน)" };
   return null;
 }
 

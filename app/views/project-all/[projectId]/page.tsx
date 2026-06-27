@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DataTable } from "@/components/DataTable";
+import { isCommittedBill } from "@/lib/bill-status";
 import { ProjectDetailEditor } from "@/components/ProjectDetailEditor";
 import { TABLES } from "@/lib/config";
 import { money, toNumber } from "@/lib/numbers";
@@ -90,13 +91,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   if (!project) notFound();
 
   const relatedRows = rowsForProject(dataRows, project["ID Project"]);
+  const summaryRows = relatedRows.filter(isCommittedBill);
   const relatedContractRows = contractRows.filter(row => String(row["ID Project"] || "").trim() === String(project["ID Project"] || "").trim());
   const { project: hydratedProject, totals } = hydrateProjectSummary(project, relatedRows);
-  const expenseBreakdown = buildExpenseBreakdown(relatedRows, totals.totalAll);
-  const budgetBreakdown = buildBudgetBreakdown(hydratedProject, relatedRows);
-  const contractorPaidBreakdown = buildContractorPaidBreakdown(relatedRows);
+  const expenseBreakdown = buildExpenseBreakdown(summaryRows, totals.totalAll);
+  const budgetBreakdown = buildBudgetBreakdown(hydratedProject, summaryRows);
+  const contractorPaidBreakdown = buildContractorPaidBreakdown(summaryRows);
   const contractWorkBreakdown = buildContractWorkBreakdown(relatedContractRows);
-  const appSheetSummaries = buildAppSheetProjectSummaries(relatedRows, totals);
+  const appSheetSummaries = buildAppSheetProjectSummaries(summaryRows, totals);
   const projectName = displayValue(valueOf(hydratedProject, ["ชื่อ Project"])) || `Project ${decodedProjectId}`;
   const tone = projectTone(hydratedProject);
 

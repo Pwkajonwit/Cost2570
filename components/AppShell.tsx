@@ -6,12 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   BriefcaseBusiness,
+  Building2,
   Car,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
   FolderKanban,
   Gauge,
+  HandCoins,
   IdCard,
   Menu,
   Plus,
@@ -40,7 +42,9 @@ const ICONS: Record<string, ComponentType<{ size?: number; strokeWidth?: number 
   contractors: Users,
   people: IdCard,
   cars: Car,
-  customers: Users
+  customers: Users,
+  companies: Building2,
+  loans: HandCoins
 };
 
 const MOBILE_VIEW_IDS = ["dashboard-main", "bill-entry", "withdraw-request", "contract-open", "bill-follow", "work-status"];

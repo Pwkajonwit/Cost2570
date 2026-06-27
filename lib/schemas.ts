@@ -34,7 +34,7 @@ export const FORM_SCHEMAS: Record<string, FieldSchema[]> = {
     { name: "วันออก 3%", type: "Date", showIf: { column: "หัก", notBlank: true } },
     { name: "ชื่อพนักงาน", type: "Ref", refTable: TABLES.PEOPLE, refKey: "รหัสพนักงาน", refLabel: "ชื่อเล่น", required: true, showIf: { column: "ประเภท", equals: "3.พนักงาน" } },
     { name: "พนักงาน", type: "Decimal", required: true, showIf: { column: "ประเภท", equals: "3.พนักงาน" } },
-    { name: "เครดิต", type: "Enum", values: ["30", "45", "60"], inputMode: "buttons", showIf: { column: "vat", notBlank: true } },
+    { name: "เครดิต", type: "Enum", values: ["30", "45", "60", "ระบุเอง"], inputMode: "buttons", showIf: { column: "vat", notBlank: true } },
     { name: "วันจ่าย", type: "Date", showIf: { column: "vat", notBlank: true } },
     { name: "ผู้เบิก", type: "Ref", refTable: TABLES.PEOPLE, refKey: "รหัสพนักงาน", refLabel: "ชื่อเล่น", required: true },
     { name: "ว/ด/ป", type: "Date", initialValue: "today" },

@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { Banknote, Check, ChevronLeft, ChevronRight, List, LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { money, toNumber } from "@/lib/numbers";
 import type { SheetRow } from "@/lib/types";
 
@@ -18,19 +19,30 @@ type WithdrawDashboardClientProps = {
   initialFilters?: WithdrawFilters;
 };
 
-const columns = ["ลำดับ", "ID Project", "ชื่อ Project", "ร้าน/บุคคล", "สินค้า/ทำงาน", "บิล", "ประเภท", "ยอดเงิน", "ยอดโอน", "ผู้เบิก", "ว/ด/ป", "สถานะ"];
+const columns = ["ลำดับ", "ID Project", "ชื่อ Project", "ร้าน/บุคคล", "สินค้า/ทำงาน", "บิล", "ประเภท", "ยอดเงิน", "ยอดโอน", "ผู้เบิก", "ว/ด/ป", "สถานะ", "จัดการ"];
 const PAGE_SIZE_OPTIONS = [50, 80, 100, 200];
 
 export function WithdrawDashboardClient({ rows, peopleRows, initialFilters = {} }: WithdrawDashboardClientProps) {
+  const router = useRouter();
   const [filters, setFilters] = useState(() => normalizeFilters(initialFilters));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(80);
+  const [statusOverrides, setStatusOverrides] = useState<Record<number, string>>({});
+  const [approvingRow, setApprovingRow] = useState<number | null>(null);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     setFilters(normalizeFilters(initialFilters));
   }, [initialFilters.requester, initialFilters.date, initialFilters.bill, initialFilters.search]);
 
-  const displayRows = useMemo(() => filterWithdrawRows(rows, filters), [rows, filters]);
+  const displayRows = useMemo(() => {
+    const currentRows = rows.map(row => {
+      const override = statusOverrides[Number(row._sheetRow)];
+      return override ? { ...row, "สถานะ": override } : row;
+    });
+    return filterWithdrawRows(currentRows, filters)
+      .filter(row => normalizedStatus(row["สถานะ"]) !== "เบิกแล้ว");
+  }, [rows, filters, statusOverrides]);
   const totalPages = Math.max(1, Math.ceil(displayRows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * pageSize;
@@ -55,6 +67,30 @@ export function WithdrawDashboardClient({ rows, peopleRows, initialFilters = {} 
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+  }
+
+  async function approveRow(row: SheetRow) {
+    const sheetRow = Number(row._sheetRow);
+    if (!Number.isInteger(sheetRow) || sheetRow < 2) return;
+    const currentStatus = normalizedStatus(row["สถานะ"]);
+    const nextStatus = currentStatus === "อนุมัติ" ? "เบิกแล้ว" : "อนุมัติ";
+    setApprovingRow(sheetRow);
+    setActionError("");
+    try {
+      const response = await fetch("/api/rows", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableName: "Data", sheetRow, values: { "สถานะ": nextStatus } })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "อนุมัติไม่สำเร็จ");
+      setStatusOverrides(current => ({ ...current, [sheetRow]: nextStatus }));
+      router.refresh();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "อนุมัติไม่สำเร็จ");
+    } finally {
+      setApprovingRow(null);
+    }
   }
 
   return (
@@ -92,11 +128,11 @@ export function WithdrawDashboardClient({ rows, peopleRows, initialFilters = {} 
         </form>
         <div className="withdraw-compact-metrics">
           <div>
-            <span>รวมยอดรออนุมัติ</span>
+            <span>รวมยอดยังไม่เบิก</span>
             <strong>{money(amount)}</strong>
           </div>
           <div>
-            <span>ยอดโอนรออนุมัติ</span>
+            <span>ยอดโอนยังไม่เบิก</span>
             <strong>{money(transfer)}</strong>
           </div>
         </div>
@@ -108,7 +144,14 @@ export function WithdrawDashboardClient({ rows, peopleRows, initialFilters = {} 
           </div>
           <strong className="table-count-pill">{visibleStart}-{visibleEnd} / {displayRows.length} รายการ</strong>
         </header>
-        <WithdrawTable columns={columns} requesterNames={requesterNames} rows={visibleRows} />
+        {actionError ? <div className="manage-error">{actionError}</div> : null}
+        <WithdrawTable
+          approvingRow={approvingRow}
+          columns={columns}
+          onApprove={approveRow}
+          requesterNames={requesterNames}
+          rows={visibleRows}
+        />
         <WithdrawPagination
           currentPage={currentPage}
           onPageChange={setPage}
@@ -151,7 +194,19 @@ function filterWithdrawRows(rows: SheetRow[], filters: Required<WithdrawFilters>
   });
 }
 
-function WithdrawTable({ columns, requesterNames, rows }: { columns: string[]; requesterNames: Record<string, string>; rows: SheetRow[] }) {
+function WithdrawTable({
+  approvingRow,
+  columns,
+  onApprove,
+  requesterNames,
+  rows
+}: {
+  approvingRow: number | null;
+  columns: string[];
+  onApprove: (row: SheetRow) => void;
+  requesterNames: Record<string, string>;
+  rows: SheetRow[];
+}) {
   if (!rows.length) return <div className="empty-state compact-empty">ไม่พบข้อมูล</div>;
   return (
     <div className="dash-table-wrap">
@@ -164,7 +219,24 @@ function WithdrawTable({ columns, requesterNames, rows }: { columns: string[]; r
             <tr key={String(row._sheetRow || row[columns[0]] || index)}>
               {columns.map(column => (
                 <td key={column} className={isAmountColumn(column) ? "numeric-cell" : undefined} data-label={column}>
-                  {formatWithdrawCell(column, row[column], requesterNames)}
+                  {column === "จัดการ" ? (
+                    <button
+                      type="button"
+                      className="withdraw-approve-button"
+                      disabled={approvingRow === Number(row._sheetRow)}
+                      onClick={() => onApprove(row)}
+                      title={normalizedStatus(row["สถานะ"]) === "อนุมัติ" ? "บันทึกว่าเบิกแล้ว" : "อนุมัติรายการ"}
+                    >
+                      {approvingRow === Number(row._sheetRow) ? (
+                        <LoaderCircle className="spin" size={15} />
+                      ) : normalizedStatus(row["สถานะ"]) === "อนุมัติ" ? (
+                        <Banknote size={15} />
+                      ) : (
+                        <Check size={15} />
+                      )}
+                      <span>{normalizedStatus(row["สถานะ"]) === "อนุมัติ" ? "เบิกแล้ว" : "อนุมัติ"}</span>
+                    </button>
+                  ) : formatWithdrawCell(column, row[column], requesterNames)}
                 </td>
               ))}
             </tr>
@@ -312,9 +384,14 @@ function formatCell(value: unknown) {
 }
 
 function formatWithdrawCell(column: string, value: unknown, requesterNames: Record<string, string>) {
+  if (column === "สถานะ") return normalizedStatus(value);
   if (column !== "ผู้เบิก") return formatCell(value);
   const key = String(value || "").trim();
   return requesterNames[key] || key;
+}
+
+function normalizedStatus(value: unknown) {
+  return String(value || "").trim() || "รออนุมัติ";
 }
 
 function isAmountColumn(column: string) {

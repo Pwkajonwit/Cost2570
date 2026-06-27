@@ -1,14 +1,15 @@
 ﻿import { TABLES } from "@/lib/config";
 import { MainDashboardClient } from "@/components/MainDashboardClient";
+import { isCommittedBill, isUnpaidBill } from "@/lib/bill-status";
 import { WithdrawDashboardClient, type WithdrawFilters } from "@/components/WithdrawDashboardClient";
 import { money, toNumber } from "@/lib/numbers";
-import { computeBillTransferAmount } from "@/lib/project-summary";
+import { hydrateDataRows as hydrateSheetDataRows } from "@/lib/project-summary";
 import { getRows } from "@/lib/sheets";
 import type { SheetRow } from "@/lib/types";
 
 export async function MainDashboard() {
   const [dataRows, projectRows] = await Promise.all([safeRows(TABLES.DATA), safeRows(TABLES.PROJECT)]);
-  return <MainDashboardClient initialDataRows={dataRows} initialProjectRows={projectRows} />;
+  return <MainDashboardClient initialDataRows={dataRows.filter(isCommittedBill)} initialProjectRows={projectRows} />;
 }
 
 function LegacyMainDashboardUnused() {
@@ -190,13 +191,13 @@ function LegacyMainDashboardUnused() {
 
 export async function WithdrawDashboard({ filters = {} }: { filters?: WithdrawFilters }) {
   const [dataRows, peopleRows] = await Promise.all([safeRows(TABLES.DATA), safeRows(TABLES.PEOPLE)]);
-  const rows = hydrateDataRows(dataRows);
+  const rows = hydrateDataRows(dataRows).filter(isUnpaidBill);
   return <WithdrawDashboardClient rows={rows} peopleRows={peopleRows} initialFilters={filters} />;
 }
 
 export async function BillFollowDashboard() {
   const [dataRows, peopleRows] = await Promise.all([safeRows(TABLES.DATA), safeRows(TABLES.PEOPLE)]);
-  const rows = hydrateDataRows(dataRows);
+  const rows = hydrateDataRows(dataRows).filter(isCommittedBill);
   const requesterNames = requesterNameMap(peopleRows);
   const vatRows = rows.filter(row => toNumber(row.vat) > 0 && !firstValue(row, ["วันได้บิล", "à¸§à¸±à¸™à¹„à¸”à¹‰à¸šà¸´à¸¥"]));
   const naturalDeductRows = rows.filter(row =>
@@ -446,25 +447,7 @@ function sumColumns(rows: SheetRow[], columns: string[]) {
 }
 
 function hydrateDataRows(rows: SheetRow[]) {
-  const amountColumns = ["ค่าของ", "ค่าแรง", "พนักงาน", "น้ำมัน", "ซ่อมรถ", "เครื่องจักร", "เครื่องมือ", "อื่นๆ", "à¸„à¹ˆà¸²à¸‚à¸­à¸‡", "à¸„à¹ˆà¸²à¹à¸£à¸‡", "à¸žà¸™à¸±à¸à¸‡à¸²à¸™", "à¸™à¹‰à¸³à¸¡à¸±à¸™", "à¸‹à¹ˆà¸­à¸¡à¸£à¸–", "à¹€à¸„à¸£à¸·à¹ˆà¸­à¸‡à¸ˆà¸±à¸à¸£", "à¹€à¸„à¸£à¸·à¹ˆà¸­à¸‡à¸¡à¸·à¸­", "à¸­à¸·à¹ˆà¸™à¹†"];
-  return rows.map(row => {
-    const output = { ...row };
-    if (!hasValue(output["à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™"])) output["à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™"] = sumColumns([output], amountColumns);
-    if (!hasValue(output["à¸¢à¸­à¸”à¹‚à¸­à¸™"])) output["à¸¢à¸­à¸”à¹‚à¸­à¸™"] = computeTransferAmount(output);
-    if (!hasValue(output["à¸£à¹‰à¸²à¸™/à¸šà¸¸à¸„à¸„à¸¥"])) output["à¸£à¹‰à¸²à¸™/à¸šà¸¸à¸„à¸„à¸¥"] = firstValue(output, ["à¸£à¹‰à¸²à¸™à¸„à¹‰à¸²", "à¸œà¸¹à¹‰à¸£à¸±à¸šà¹€à¸«à¸¡à¸²", "à¸£à¹‰à¸²à¸™à¸„à¹‰à¸²/à¸œà¸¹à¹‰à¸£à¸±à¸šà¹€à¸«à¸¡à¸²"]);
-    if (!hasValue(output["à¸ªà¸´à¸™à¸„à¹‰à¸²/à¸—à¸³à¸‡à¸²à¸™"])) output["à¸ªà¸´à¸™à¸„à¹‰à¸²/à¸—à¸³à¸‡à¸²à¸™"] = firstValue(output, ["à¸ªà¸´à¸™à¸„à¹‰à¸²", "à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¸‡à¸²à¸™", "à¸£à¸²à¸¢à¸à¸²à¸£"]);
-    output["ลำดับ"] = firstValue(output, ["ลำดับ", "à¸¥à¸³à¸”à¸±à¸š"]);
-    output["ชื่อ Project"] = firstValue(output, ["ชื่อ Project", "à¸Šà¸·à¹ˆà¸­ Project"]);
-    output["ร้าน/บุคคล"] = firstValue(output, ["ร้าน/บุคคล", "à¸£à¹‰à¸²à¸™/à¸šà¸¸à¸„à¸„à¸¥"]);
-    output["สินค้า/ทำงาน"] = firstValue(output, ["สินค้า/ทำงาน", "à¸ªà¸´à¸™à¸„à¹‰à¸²/à¸—à¸³à¸‡à¸²à¸™"]);
-    output["รายการ"] = firstValue(output, ["รายการ", "à¸£à¸²à¸¢à¸à¸²à¸£"]);
-    output["ยอดเงิน"] = firstValue(output, ["ยอดเงิน", "à¸¢à¸­à¸”à¹€à¸‡à¸´à¸™"]);
-    output["ยอดโอน"] = firstValue(output, ["ยอดโอน", "à¸¢à¸­à¸”à¹‚à¸­à¸™"]);
-    output["ผู้เบิก"] = firstValue(output, ["ผู้เบิก", "à¸œà¸¹à¹‰à¹€à¸šà¸´à¸"]);
-    output["หัก"] = firstValue(output, ["หัก", "à¸«à¸±à¸"]);
-    output["เครดิต"] = firstValue(output, ["เครดิต", "à¹€à¸„à¸£à¸”à¸´à¸•"]);
-    return output;
-  });
+  return hydrateSheetDataRows(rows);
 }
 
 function hydrateProjectSummary(project: SheetRow, dataRows: SheetRow[]): SheetRow {
@@ -483,8 +466,6 @@ function hydrateProjectSummary(project: SheetRow, dataRows: SheetRow[]): SheetRo
 function projectValue(row: SheetRow, columns: string[]) {
   return firstValue(row, columns);
 }
-
-const computeTransferAmount = computeBillTransferAmount;
 
 function firstValue(row: SheetRow, columns: string[]) {
   for (const column of columns) {

@@ -4,6 +4,17 @@ import { SHEET_ID, TABLE_KEYS } from "@/lib/config";
 import type { RefOption, RowValue, SheetRow } from "@/lib/types";
 
 const GOOGLE_READ_TIMEOUT_MS = 20_000;
+const AUDIT_SHEET = "ระบบLog";
+const AUDIT_HEADERS = ["เวลา", "การทำงาน", "ตาราง", "รหัส", "แถว", "ผู้ใช้งาน", "รายละเอียด"];
+
+export type AuditEntry = {
+  action: string;
+  tableName: string;
+  key?: string;
+  sheetRow?: number;
+  actor?: string;
+  details?: Record<string, unknown>;
+};
 
 function getCredentials() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
@@ -144,6 +155,51 @@ export async function deleteRows(tableName: string, sheetRows: number[]) {
           }
         }
       }))
+    }
+  });
+}
+
+export async function appendAuditLog(entry: AuditEntry) {
+  const sheets = await getSheetsClient();
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SHEET_ID,
+    fields: "sheets.properties"
+  }, { timeout: GOOGLE_READ_TIMEOUT_MS });
+  const exists = spreadsheet.data.sheets?.some(item => item.properties?.title === AUDIT_SHEET);
+
+  if (!exists) {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SHEET_ID,
+        requestBody: { requests: [{ addSheet: { properties: { title: AUDIT_SHEET } } }] }
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `${quoteSheet(AUDIT_SHEET)}!A1:G1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [AUDIT_HEADERS] }
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/already exists/i.test(message)) throw error;
+    }
+  }
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID,
+    range: `${quoteSheet(AUDIT_SHEET)}!A:G`,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: {
+      values: [[
+        new Date().toISOString(),
+        entry.action,
+        entry.tableName,
+        entry.key || "",
+        entry.sheetRow || "",
+        entry.actor || "web",
+        JSON.stringify(entry.details || {})
+      ]]
     }
   });
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { DataTable } from "@/components/DataTable";
+import { isCommittedBill } from "@/lib/bill-status";
 import { TABLES } from "@/lib/config";
 import { hydrateBillRows, hydrateContractRows } from "@/lib/formulas";
 import { getRows } from "@/lib/sheets";
@@ -59,7 +60,7 @@ export default async function ContractDetailPage({ params }: ContractDetailPageP
   const contract = contractRows.find(row => String(row.id_Conwork || "").trim() === decodedContractId);
   if (!contract) notFound();
 
-  const relatedRows = dataRows.filter(row => relatedToContract(row, decodedContractId));
+  const relatedRows = dataRows.filter(row => relatedToContract(row, decodedContractId) && isCommittedBill(row));
   const displayName = valueOf(contract, ["ชื่อเล่น", "ชื่อ-นามสกุล", "id_Contractor"]) || decodedContractId;
   const paid = toAmount(valueOf(contract, ["ยอดเงินจ่าย"]));
   const total = toAmount(valueOf(contract, ["ยอดเงินจ้าง"]));
